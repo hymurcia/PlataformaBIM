@@ -285,13 +285,13 @@ app.post('/incidentes', upload.array('imagenes', 5), async (req, res) => {
     }
 
     const insertQuery = `
-      INSERT INTO incidentes 
+      INSERT INTO incidente
         (titulo, descripcion, tipo, ubicacion_id, fecha_creacion, estado, solicitante_id, gravedad)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`;
     const valores = [
       titulo, descripcion, tipo, ubicacionIdNum, fechaActual,
-      'pendiente', solicitante_id, gravedad
+      'reportado', solicitante_id, gravedad
     ];
 
     const result = await pool.query(insertQuery, valores);
@@ -352,11 +352,11 @@ app.post('/incidentes/invitado', upload.array('imagenes', 3), async (req, res) =
     const fechaActual = new Date().toISOString();
 
     const { rows } = await pool.query(
-      `INSERT INTO incidentes 
+      `INSERT INTO incidente 
         (titulo, descripcion, tipo, ubicacion_id, fecha_creacion, estado, solicitante_id, gravedad)
        VALUES ($1, $2, $3, $4, $5, $6, NULL, $7)
        RETURNING *`,
-      [titulo, descripcion, tipo, ubicacionIdNum, fechaActual, 'pendiente', gravedad]
+      [titulo, descripcion, tipo, ubicacionIdNum, fechaActual, 'reportado', gravedad]
     );
 
     const incidenteId = rows[0].id;
@@ -394,7 +394,7 @@ app.get('/incidentes/:id', checkRole([1, 2, 3, 4]), async (req, res) => {
         u.nombre AS usuario_nombre,
         u.email AS usuario_email,
         COUNT(img.id) AS imagenes_count
-      FROM incidentes i
+      FROM incidente i
       LEFT JOIN usuarios u ON i.solicitante_id = u.id
       LEFT JOIN imagenes_incidente img ON i.id = img.incidente_id
       WHERE i.id = $1
@@ -458,7 +458,7 @@ app.put('/incidentes/:id/estado', checkRole([1, 2]), async (req, res) => {
 
   try {
     const query = `
-      UPDATE incidentes 
+      UPDATE incidente
       SET estado = $1,
           fecha_cierre = CASE WHEN $1 = 'resuelto' THEN NOW() ELSE fecha_cierre END
       WHERE id = $2
@@ -502,7 +502,7 @@ app.post('/reporte', upload.array('imagenes', 5), async (req, res) => {
         (titulo, descripcion, tipo, ubicacion_id, fecha_creacion, estado, solicitante_id, gravedad)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`;
-    const valores = [titulo, descripcion, tipo, ubicacionIdNum, fechaCreacion, 'pendiente', solicitante_id, gravedad];
+    const valores = [titulo, descripcion, tipo, ubicacionIdNum, fechaCreacion, 'reportado', solicitante_id, gravedad];
 
     const result = await pool.query(insertQuery, valores);
     const reporteId = result.rows[0].id;
@@ -548,7 +548,7 @@ app.post('/reporte/invitado', upload.array('imagenes', 3), async (req, res) => {
         (titulo, descripcion, tipo, ubicacion_id, fecha_creacion, estado, solicitante_id, gravedad)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`;
-    const valores = [titulo, descripcion, tipo, ubicacionIdNum, fechaCreacion, 'pendiente', 1, gravedad];
+    const valores = [titulo, descripcion, tipo, ubicacionIdNum, fechaCreacion, 'reportado', 1, gravedad];
 
     const result = await pool.query(insertQuery, valores);
     const incidenteId = result.rows[0].id;
@@ -740,7 +740,7 @@ app.post('/asignaciones', checkRole([1, 2]), async (req, res) => {
 
     // Verificar que el incidente existe y está pendiente
     const incidente = await pool.query(
-      'SELECT estado FROM incidentes WHERE id = $1',
+      'SELECT estado FROM incidente WHERE id = $1',
       [incidente_id]
     );
 
@@ -769,7 +769,7 @@ app.post('/asignaciones', checkRole([1, 2]), async (req, res) => {
 
     // Actualizar estado del incidente
     await pool.query(
-      'UPDATE incidentes SET estado = $1 WHERE id = $2',
+      'UPDATE incidente SET estado = $1 WHERE id = $2',
       ['asignado', incidente_id]
     );
 
@@ -818,7 +818,7 @@ app.get('/mis-asignaciones', checkRole([1, 2, 3, 4]), async (req, res) => {
         a.fecha_asignacion,
         a.comentarios as comentarios_asignacion
       FROM asignaciones a
-      JOIN incidentes i ON a.incidente_id = i.id
+      JOIN incidente i ON a.incidente_id = i.id
       JOIN responsables r ON a.responsable_id = r.id
       WHERE r.usuario_id = $1
       ORDER BY a.fecha_asignacion DESC
@@ -862,7 +862,7 @@ app.put('/asignaciones/:id', checkRole([1, 2, 3, 4]), async (req, res) => {
     // Si se marca como completado, actualizar estado del incidente
     if (estado === 'completado') {
       await pool.query(
-        'UPDATE incidentes SET estado = $1 WHERE id = $2',
+        'UPDATE incidente SET estado = $1 WHERE id = $2',
         ['resuelto', rows[0].incidente_id]
       );
     }
@@ -881,29 +881,29 @@ app.put('/asignaciones/:id', checkRole([1, 2, 3, 4]), async (req, res) => {
 // Obtener métricas generales
 app.get('/metricas', checkRole([1, 2]), async (req, res) => {
   try {
-    // Estadísticas generales
     const generales = await pool.query(`
       SELECT 
         COUNT(*) as total,
-        COUNT(CASE WHEN estado = 'pendiente' THEN 1 END) as pendientes,
+        COUNT(CASE WHEN estado = 'reportado' THEN 1 END) as reportados,
         COUNT(CASE WHEN estado = 'asignado' THEN 1 END) as asignados,
         COUNT(CASE WHEN estado = 'en_proceso' THEN 1 END) as en_proceso,
         COUNT(CASE WHEN estado = 'resuelto' THEN 1 END) as resueltos,
-        COUNT(CASE WHEN estado = 'rechazado' THEN 1 END) as rechazados,
-        COUNT(CASE WHEN usuario_id IS NULL THEN 1 END) as invitados
+        COUNT(CASE WHEN estado = 'cerrado' THEN 1 END) as cerrados,
+        COUNT(CASE WHEN solicitante_id IS NULL THEN 1 END) as invitados
       FROM incidente
     `);
 
     // Resolución por tipo
     const porTipo = await pool.query(`
       SELECT 
-        tipo,
+        i.tipo,
         COUNT(*) as total,
-        COUNT(CASE WHEN estado = 'resuelto' THEN 1 END) as resueltos,
-        ROUND(AVG(EXTRACT(EPOCH FROM (fecha_finalizacion - fecha_creacion)) / 3600)::numeric, 2)
-      FROM incidente
-      WHERE estado = 'resuelto'
-      GROUP BY tipo
+        COUNT(CASE WHEN i.estado = 'resuelto' THEN 1 END) as resueltos,
+        ROUND(AVG(EXTRACT(EPOCH FROM (i.fecha_cierre - i.fecha_creacion)) / 3600)::numeric, 2) as tiempo_promedio
+      FROM incidente i
+      JOIN usuarios u ON u.id = i.solicitante_id
+      WHERE i.estado = 'resuelto'
+      GROUP BY i.tipo;
     `);
 
     // Eficiencia de responsables
@@ -912,15 +912,16 @@ app.get('/metricas', checkRole([1, 2]), async (req, res) => {
         u.nombre,
         COUNT(a.id) as tareas_asignadas,
         COUNT(CASE WHEN a.estado_asignacion = 'completado' THEN 1 END) as tareas_completadas,
-        ROUND(AVG(EXTRACT(EPOCH FROM (fecha_finalizacion - fecha_creacion)) / 3600)::numeric, 2)
+        ROUND(AVG(EXTRACT(EPOCH FROM (i.fecha_cierre - i.fecha_creacion)) / 3600)::numeric, 2) as tiempo_promedio
       FROM asignaciones a
       JOIN responsables r ON a.responsable_id = r.id
       JOIN usuarios u ON r.usuario_id = u.id
-      JOIN incidentes i ON a.incidente_id = i.id
+      JOIN incidente i ON a.incidente_id = i.id
       WHERE i.estado = 'resuelto'
       GROUP BY u.nombre
       ORDER BY tareas_completadas DESC
       LIMIT 5
+
     `);
 
     // Tendencia mensual
