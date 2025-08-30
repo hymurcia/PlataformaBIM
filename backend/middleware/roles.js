@@ -1,4 +1,4 @@
-const { verifyToken } = require('../auth');
+const { verifyToken } = require('../utils/jwt');
 
 function checkRole(options) {
   const roles = Array.isArray(options) ? options : options.roles || [];
