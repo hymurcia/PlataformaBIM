@@ -5,7 +5,7 @@ const pool = require('../db'); // conexión a la BD
 // =====================
 const asignarResponsable = async (req, res) => {
   try {
-    const { incidente_id, usuario_id, comentarios } = req.body; // 👈 ahora se recibe usuario_id
+    const { incidente_id, responsable_id, comentarios, fecha_finalizacion } = req.body;
     const supervisorId = req.user.id; // supervisor logueado desde JWT
 
     // 1. Verificar que el incidente existe
@@ -22,26 +22,31 @@ const asignarResponsable = async (req, res) => {
       return res.status(400).json({ error: 'El incidente ya está resuelto' });
     }
 
-    // 2. Verificar que el responsable existe y está activo
+    // 2. Verificar que el responsable existe y está activo (usando usuario_id)
     const responsable = await pool.query(
-      `SELECT r.usuario_id, u.nombre, u.email 
+      `SELECT r.id AS responsable_id, r.usuario_id, r.especialidad, u.nombre, u.email
        FROM responsables r
        JOIN usuarios u ON r.usuario_id = u.id
        WHERE r.usuario_id = $1 AND r.activo = true`,
-      [usuario_id]
+      [responsable_id] // 👈 aquí recibimos usuario_id
     );
 
     if (responsable.rows.length === 0) {
       return res.status(400).json({ error: 'Responsable no válido o inactivo' });
     }
 
-    // 3. Crear asignación usando usuario_id en lugar de r.id
+    // 👇 Usamos el id real de la tabla responsables
+    const responsableRealId = responsable.rows[0].responsable_id;
+
+
+
+    // 3. Crear asignación
     const { rows } = await pool.query(
       `INSERT INTO asignaciones 
-        (incidente_id, responsable_id, comentarios, estado_asignacion, fecha_asignacion)
-       VALUES ($1, $2, $3, 'pendiente', NOW())
-       RETURNING *`,
-      [incidente_id, usuario_id, comentarios]
+    (incidente_id, responsable_id, comentarios, estado_asignacion, fecha_asignacion)
+   VALUES ($1, $2, $3, 'pendiente', NOW())
+   RETURNING *`,
+      [incidente_id, responsableRealId, comentarios || null]
     );
 
     // 4. Actualizar incidente → supervisor + estado + fecha_asignacion
@@ -65,14 +70,15 @@ const asignarResponsable = async (req, res) => {
   }
 };
 
+
 // =====================
 // Obtener responsables disponibles
 // =====================
-const getResponsables = async (req, res) => {
+const obtenerResponsables = async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT 
-        r.usuario_id,           -- 👈 devolvemos usuario_id directamente
+        r.usuario_id AS id,      -- 👈 ahora devolvemos como id
         u.nombre, 
         u.apellido,
         u.email, 
@@ -94,119 +100,114 @@ const getResponsables = async (req, res) => {
 // =====================
 // Obtener tareas de un responsable (incidentes + mantenimientos)
 // =====================
-const getMisAsignaciones = async (req, res) => {
+const obtenerMisAsignaciones = async (req, res) => {
   try {
-    const user_id = req.user.id; // este es el usuario_id
+    const usuarioId = req.user.id; // usuario_id del JWT
+
+    // 🔹 Buscar el id del responsable vinculado a este usuario
+    const responsableRes = await pool.query(
+      `SELECT id FROM responsables WHERE usuario_id = $1 AND activo = true`,
+      [usuarioId]
+    );
+
+    const responsable = responsableRes.rows[0];
+
+    // Si no es responsable activo, no tiene asignaciones
+    if (!responsable) {
+      return res.json([]);
+    }
 
     // --- 1. Incidentes asignados ---
     const incidentes = await pool.query(
       `
       SELECT 
-        a.id as tarea_id,
-        'incidente' as tipo_tarea,
+        a.id AS tarea_id,
+        'incidente' AS tipo_tarea,
         i.titulo,
         i.descripcion,
         i.estado,
         a.estado_asignacion,
         a.fecha_asignacion,
-        a.comentarios as comentarios_asignacion
+        a.comentarios AS comentarios_asignacion
       FROM asignaciones a
       JOIN incidente i ON a.incidente_id = i.id
       WHERE a.responsable_id = $1
       AND a.estado_asignacion != 'resuelto'
       ORDER BY a.fecha_asignacion DESC
       `,
-      [user_id]
+      [responsable.id] // usamos id del responsable
     );
 
-    // --- 2. Mantenimientos asignados ---
-    const mantenimientos = await pool.query(
-      `
-      SELECT 
-        m.id as tarea_id,
-        'mantenimiento' as tipo_tarea,
-        m.nombre as titulo,
-        m.descripcion,
-        m.estado,
-        NULL as estado_asignacion,
-        m.fecha_programada as fecha_asignacion,
-        m.comentarios as comentarios_asignacion
-      FROM mantenimientos m
-      WHERE m.operario_id = $1
-      AND m.estado != 'resuelto'
-      ORDER BY m.fecha_programada DESC
-      `,
-      [user_id]
-    );
-
-    // Unificar resultados
-    const tareas = [...incidentes.rows, ...mantenimientos.rows];
-
-    res.json(tareas);
+    // 🔹 Retornar solo incidentes
+    res.json(incidentes.rows);
   } catch (err) {
     console.error('Error en getMisAsignaciones:', err.message);
     res.status(500).json({ error: 'Error al obtener asignaciones' });
   }
 };
 
+
 // =====================
 // Actualizar estado de asignación
 // =====================
-const updateAsignacion = async (req, res) => {
+const actualizarAsignacion = async (req, res) => {
   try {
-    const { id } = req.params; // id de la asignación
-    const { estado, comentarios } = req.body;
-    const user_id = req.user.id;
+    const asignacionId = req.params.id;
+    const { estado, comentarios, tipo } = req.body;
+    const usuarioId = req.user.id; // del JWT
 
-    // Verificar que el usuario es responsable de la asignación
-    const verificacion = await pool.query(
-      `
-      SELECT a.id, a.incidente_id
-      FROM asignaciones a
-      WHERE a.id = $1 AND a.responsable_id = $2
-      `,
-      [id, user_id]
+    // 1. Buscar id del responsable vinculado al usuario
+    const respRes = await pool.query(
+      `SELECT id FROM responsables WHERE usuario_id = $1 AND activo = true`,
+      [usuarioId]
     );
+    const responsable = respRes.rows[0];
 
-    // Solo el responsable o un administrador/supervisor (rol_id = 2) puede actualizar
-    if (verificacion.rows.length === 0 && req.user.rol_id !== 2) {
-      return res.status(403).json({ error: 'No autorizado' });
+    if (!responsable) {
+      return res.status(403).json({ error: 'No eres un responsable válido' });
     }
 
-    // Actualizar asignación
-    const { rows } = await pool.query(
-      `
-      UPDATE asignaciones 
-      SET 
-        estado_asignacion = $1,
-        comentarios = COALESCE($2, comentarios)
-      WHERE id = $3
-      RETURNING *
-      `,
-      [estado, comentarios, id]
+    // 2. Validar que la asignación pertenece a este responsable
+    const asignacionRes = await pool.query(
+      `SELECT * FROM asignaciones WHERE id = $1 AND responsable_id = $2`,
+      [asignacionId, responsable.id]
     );
 
-    // Si se marca como resuelto → cerrar incidente
-    if (estado === 'resuelto' && verificacion.rows.length > 0) {
+    if (asignacionRes.rows.length === 0) {
+      return res.status(403).json({ error: 'No tienes permiso para actualizar esta asignación' });
+    }
+
+    // 3. Actualizar la asignación
+    const { rows } = await pool.query(
+      `UPDATE asignaciones
+       SET estado_asignacion = $1,
+           comentarios = $2
+       WHERE id = $3
+       RETURNING *`,
+      [estado, comentarios || null, asignacionId]
+    );
+
+    // 4. Si se completó, actualizar también el incidente
+    if (tipo === 'incidente' && estado === 'completado') {
       await pool.query(
-        'UPDATE incidente SET estado = $1, fecha_cierre = NOW() WHERE id = $2',
-        ['resuelto', verificacion.rows[0].incidente_id]
+        `UPDATE incidente
+         SET estado = 'resuelto',
+             fecha_cierre = NOW()
+         WHERE id = $1`,
+        [asignacionRes.rows[0].incidente_id]
       );
     }
 
-    res.json({
-      message: 'Asignación actualizada',
-      asignacion: rows[0]
-    });
+    res.json({ message: 'Tarea actualizada con éxito', asignacion: rows[0] });
   } catch (err) {
     console.error('Error en updateAsignacion:', err.message);
-    res.status(500).json({ error: 'Error al actualizar asignación' });
+    res.status(500).json({ error: 'Error al actualizar tarea' });
   }
 };
 
 module.exports = {
   asignarResponsable,
-  getResponsables,
-  getMisAsignaciones,
-  updateAsignacion
+  obtenerResponsables,
+  obtenerMisAsignaciones,
+  actualizarAsignacion
 };

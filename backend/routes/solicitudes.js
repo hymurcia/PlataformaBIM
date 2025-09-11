@@ -1,13 +1,11 @@
-// routes/solicitudRoutes.js
 const express = require("express");
 const router = express.Router();
-const solicitudController = require("../controllers/solicitudesController");
+const { crearSolicitud, obtenerSolicitudes } = require("../controllers/solicitudesController");
 
-// Rutas CRUD
-router.get("/", solicitudController.getSolicitudes);
-router.get("/:id", solicitudController.getSolicitudById);
-router.post("/", solicitudController.createSolicitud);
-router.put("/:id", solicitudController.updateSolicitud);
-router.delete("/:id", solicitudController.deleteSolicitud);
+// Crear nueva solicitud
+router.post("/", crearSolicitud);
+
+// Obtener todas las solicitudes
+router.get("/", obtenerSolicitudes);
 
 module.exports = router;

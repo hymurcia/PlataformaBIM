@@ -7,8 +7,9 @@ const checkRole = require('../middleware/roles');
 const {
   crearIncidente,
   crearIncidenteInvitado,
-  getIncidenteById,
-  getImagenesIncidente,
+  obtenerDetalleIncidente,
+  obtenerIncidenteById,
+  obtenerImagenesIncidente,
   actualizarEstadoIncidente
 } = require('../controllers/incidenteController');
 
@@ -18,11 +19,14 @@ router.post('/', upload.array('imagenes', 5), crearIncidente);
 // Reportar incidente como invitado
 router.post('/invitado', upload.array('imagenes', 3), crearIncidenteInvitado);
 
+// rutas/incidentes.js
+router.get('/asignacion/:id', checkRole([1, 2, 3, 4]), obtenerDetalleIncidente);
+
 // Obtener incidente por ID
-router.get('/:id', checkRole([1, 2, 3, 4]), getIncidenteById);
+router.get('/:id', checkRole([1, 2, 3, 4]), obtenerIncidenteById);
 
 // Obtener imágenes de un incidente
-router.get('/:id/imagenes', checkRole([1, 2, 3, 4]), getImagenesIncidente);
+router.get('/:id/imagenes', checkRole([1, 2, 3, 4]), obtenerImagenesIncidente);
 
 // Cambiar estado de incidente
 router.put('/:id/estado', checkRole([1, 2]), actualizarEstadoIncidente);

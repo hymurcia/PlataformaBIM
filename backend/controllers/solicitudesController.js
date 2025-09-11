@@ -1,95 +1,47 @@
-// controllers/solicitudController.js
 const pool = require("../db");
 
-// Obtener todas las solicitudes
-const getSolicitudes = async (req, res) => {
+// Crear nueva solicitud
+const crearSolicitud = async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM solicitudadquisicion ORDER BY fecha_solicitud DESC");
-    res.json(result.rows);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error al obtener solicitudes" });
-  }
-};
+    // El usuario lo obtenemos del token JWT (middleware de auth)
+    const usuarioId = req.user.id; 
+    const usuarioNombre = `${req.user.nombre} ${req.user.apellido}`;
 
-// Obtener una solicitud por ID
-const getSolicitudById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await pool.query("SELECT * FROM solicitudadquisicion WHERE id = $1", [id]);
+    const { item_solicitado, cantidad } = req.body;
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Solicitud no encontrada" });
+    if (!item_solicitado || !cantidad) {
+      return res.status(400).json({ error: "Faltan datos obligatorios" });
     }
 
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error al obtener la solicitud" });
-  }
-};
-
-// Crear una solicitud
-const createSolicitud = async (req, res) => {
-  try {
-    const { usuario_solicitante, item_solicitado, cantidad } = req.body;
     const result = await pool.query(
-      `INSERT INTO solicitudadquisicion (usuario_solicitante, item_solicitado, cantidad) 
-       VALUES ($1, $2, $3) RETURNING *`,
-      [usuario_solicitante, item_solicitado, cantidad]
+      `INSERT INTO solicitudadquisicion 
+        (usuario_solicitante, item_solicitado, cantidad, estado_solicitud, id_usuario_aprueba) 
+       VALUES ($1, $2, $3, 'pendiente', NULL) 
+       RETURNING *`,
+      [usuarioNombre, item_solicitado, cantidad]
     );
+
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error al crear la solicitud" });
+    console.error("Error al crear solicitud:", error);
+    res.status(500).json({ error: "Error interno al crear solicitud" });
   }
 };
 
-// Actualizar estado de la solicitud (aprobar/rechazar)
-const updateSolicitud = async (req, res) => {
+// Obtener todas las solicitudes
+const obtenerSolicitudes = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { estado_solicitud, id_usuario_aprueba } = req.body;
-
     const result = await pool.query(
-      `UPDATE solicitudadquisicion 
-       SET estado_solicitud = $1, id_usuario_aprueba = $2, fecha_aprobacion = CURRENT_TIMESTAMP 
-       WHERE id = $3 RETURNING *`,
-      [estado_solicitud, id_usuario_aprueba, id]
+      "SELECT * FROM solicitudadquisicion ORDER BY fecha_solicitud DESC"
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Solicitud no encontrada" });
-    }
-
-    res.json(result.rows[0]);
+    res.json(result.rows);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error al actualizar la solicitud" });
-  }
-};
-
-// Eliminar solicitud
-const deleteSolicitud = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await pool.query("DELETE FROM solicitudadquisicion WHERE id = $1 RETURNING *", [id]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Solicitud no encontrada" });
-    }
-
-    res.json({ message: "Solicitud eliminada correctamente" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error al eliminar la solicitud" });
+    console.error("Error al obtener solicitudes:", error);
+    res.status(500).json({ error: "Error interno al obtener solicitudes" });
   }
 };
 
 module.exports = {
-  getSolicitudes,
-  getSolicitudById,
-  createSolicitud,
-  updateSolicitud,
-  deleteSolicitud,
+  crearSolicitud,
+  obtenerSolicitudes,
 };

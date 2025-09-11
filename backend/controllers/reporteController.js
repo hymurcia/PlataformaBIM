@@ -176,40 +176,58 @@ const actualizarReporte = async (req, res) => {
 // Listar reportes con paginación y filtros
 const listarReportes = async (req, res) => {
   try {
-    let { page = 1, limit = 10 } = req.query;
+    let { page = 1, limit = 10, estado } = req.query;
     page = parseInt(page);
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
-    // Si rol_id = 4, solo traer reportes del usuario
-    const isRol4 = req.user?.rol_id === 4;
-    const params = [limit, offset];
-    let whereClause = '';
-    if (isRol4) {
-      whereClause = `WHERE r.solicitante_id = $3`;
+    // Parámetros dinámicos
+    const params = [];
+    let whereConditions = [];
+    
+    // 🔹 Si rol_id = 4, solo reportes creados por el usuario
+    if (req.user?.rol_id === 4) {
       params.push(req.user.id);
+      whereConditions.push(`r.solicitante_id = $${params.length}`);
     }
 
+    // 🔹 Filtro por estado si se envía
+    if (estado) {
+      params.push(estado);
+      whereConditions.push(`r.estado = $${params.length}`);
+    }
+
+    const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    // 🔹 Query principal con joins
     const query = `
-      SELECT r.*, u.nombre AS usuario_nombre, u.email AS usuario_email,
+      SELECT r.*,
+             u1.nombre AS solicitante_nombre, u1.email AS solicitante_email,
+             u2.nombre AS operario_nombre, u2.email AS operario_email,
+             u3.nombre AS supervisor_nombre, u3.email AS supervisor_email,
              ub.nombre AS ubicacion_nombre,
              COUNT(img.id) AS imagenes_count
       FROM incidente r
-      LEFT JOIN usuarios u ON r.solicitante_id = u.id
-      LEFT JOIN imagenes_incidente img ON r.id = img.incidente_id
+      LEFT JOIN usuarios u1 ON r.solicitante_id = u1.id
+      LEFT JOIN usuarios u2 ON r.operario_id = u2.id
+      LEFT JOIN usuarios u3 ON r.supervisor_asignador_id = u3.id
       LEFT JOIN ubicaciones ub ON r.ubicacion_id = ub.id
+      LEFT JOIN imagenes_incidente img ON r.id = img.incidente_id
       ${whereClause}
-      GROUP BY r.id, u.nombre, u.email, ub.nombre
+      GROUP BY r.id, u1.nombre, u1.email, u2.nombre, u2.email, u3.nombre, u3.email, ub.nombre
       ORDER BY r.fecha_creacion DESC
-      LIMIT $1 OFFSET $2
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2};
     `;
-    const result = await pool.query(query, params);
-    const countQuery = isRol4 
-      ? 'SELECT COUNT(*) FROM incidente WHERE solicitante_id = $1'
-      : 'SELECT COUNT(*) FROM incidente';
-    const countResult = isRol4 
-      ? await pool.query(countQuery, [req.user.id])
-      : await pool.query(countQuery);
+
+    const result = await pool.query(query, [...params, limit, offset]);
+
+    // 🔹 Query para contar total
+    const countQuery = `
+      SELECT COUNT(*) 
+      FROM incidente r
+      ${whereClause};
+    `;
+    const countResult = await pool.query(countQuery, params);
     const total = parseInt(countResult.rows[0].count);
 
     res.json({
@@ -219,6 +237,7 @@ const listarReportes = async (req, res) => {
       totalPages: Math.ceil(total / limit),
       incidentes: result.rows
     });
+
   } catch (err) {
     console.error('Error obteniendo reportes:', err);
     res.status(500).json({ error: 'Error interno del servidor' });

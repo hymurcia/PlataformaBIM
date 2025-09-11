@@ -9,9 +9,9 @@ const obtenerUsuarios = async (req, res) => {
 
     const query = {
       text: `
-        SELECT id, nombre, email, rol_id, activo 
-        FROM usuarios 
-        WHERE (nombre ILIKE $1 OR email ILIKE $1)
+        SELECT id, nombre, apellido, telefono, email, rol_id, fecha_creacion
+        FROM usuarios
+        WHERE (nombre ILIKE $1 OR apellido ILIKE $1 OR email ILIKE $1 OR telefono ILIKE $1)
         ORDER BY id
         LIMIT $2 OFFSET $3
       `,
@@ -20,7 +20,7 @@ const obtenerUsuarios = async (req, res) => {
 
     const countQuery = {
       text: `SELECT COUNT(*) FROM usuarios 
-             WHERE (nombre ILIKE $1 OR email ILIKE $1)`,
+             WHERE (nombre ILIKE $1 OR apellido ILIKE $1 OR email ILIKE $1 OR telefono ILIKE $1)`,
       values: [`%${search}%`]
     };
 
@@ -44,14 +44,14 @@ const obtenerUsuarios = async (req, res) => {
 // 2. Crear usuario
 const crearUsuario = async (req, res) => {
   try {
-    const { nombre, email, password, rol_id, activo = true } = req.body;
+    const { nombre, apellido, telefono, email, password, rol_id } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const { rows } = await pool.query(
-      `INSERT INTO usuarios (nombre, email, password, rol_id, activo)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, nombre, email, rol_id, activo`,
-      [nombre, email, hashedPassword, rol_id, activo]
+      `INSERT INTO usuarios (nombre, apellido, telefono, email, password, rol_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, nombre, apellido, telefono, email, rol_id, fecha_creacion`,
+      [nombre, apellido, telefono, email, hashedPassword, rol_id]
     );
 
     res.status(201).json(rows[0]);
@@ -69,14 +69,14 @@ const crearUsuario = async (req, res) => {
 const actualizarUsuario = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, email, rol_id, activo } = req.body;
+    const { nombre, apellido, telefono, email, rol_id } = req.body;
 
     const { rows } = await pool.query(
       `UPDATE usuarios 
-       SET nombre = $1, email = $2, rol_id = $3, activo = $4
-       WHERE id = $5
-       RETURNING id, nombre, email, rol_id, activo`,
-      [nombre, email, rol_id, activo, id]
+       SET nombre = $1, apellido = $2, telefono = $3, email = $4, rol_id = $5
+       WHERE id = $6
+       RETURNING id, nombre, apellido, telefono, email, rol_id, fecha_creacion`,
+      [nombre, apellido, telefono, email, rol_id, id]
     );
 
     if (rows.length === 0) {
@@ -90,27 +90,24 @@ const actualizarUsuario = async (req, res) => {
   }
 };
 
-// 4. Desactivar usuario (soft delete)
-const desactivarUsuario = async (req, res) => {
+// 4. Eliminar usuario (DELETE físico)
+const eliminarUsuario = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { rows } = await pool.query(
-      `UPDATE usuarios 
-       SET activo = false 
-       WHERE id = $1
-       RETURNING id`,
+    const { rowCount } = await pool.query(
+      `DELETE FROM usuarios WHERE id = $1`,
       [id]
     );
 
-    if (rows.length === 0) {
+    if (rowCount === 0) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    res.json({ message: 'Usuario desactivado' });
+    res.json({ message: 'Usuario eliminado correctamente' });
   } catch (err) {
-    console.error('Error en desactivarUsuario:', err.message);
-    res.status(500).json({ error: 'Error al desactivar usuario' });
+    console.error('Error en eliminarUsuario:', err.message);
+    res.status(500).json({ error: 'Error al eliminar usuario' });
   }
 };
 
@@ -129,6 +126,6 @@ module.exports = {
   obtenerUsuarios,
   crearUsuario,
   actualizarUsuario,
-  desactivarUsuario,
+  eliminarUsuario,
   obtenerRoles
 };

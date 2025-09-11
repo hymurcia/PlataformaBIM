@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { getMantenimientoDecision } = require('../controllers/predictivoController');
+const { getMantenimientoDecision, obtenerMantenimientoDecision } = require('../controllers/predictivoController');
 
 // Endpoint POST: frontend envía fecha_programada
-router.get('/mantenimiento', getMantenimientoDecision);
+router.get('/mantenimiento', obtenerMantenimientoDecision);
 
 module.exports = router;

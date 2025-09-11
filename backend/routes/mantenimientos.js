@@ -2,13 +2,15 @@
 const express = require('express');
 const router = express.Router();
 const mantenimientosController = require('../controllers/mantenimientosController');
+const checkRole = require('../middleware/roles');
 
 // Rutas CRUD
-router.get('/', mantenimientosController.getMantenimientos);
-router.get('/mis-mantenimientos', mantenimientosController.getMisMantenimientos);
-router.get('/:id', mantenimientosController.getMantenimientoById);
-router.post('/', mantenimientosController.createMantenimiento);
-router.put('/:id/estado', mantenimientosController.updateMantenimientoEstado);
-router.put('/:id', mantenimientosController.updateMantenimiento);
-router.delete('/:id', mantenimientosController.deleteMantenimiento);
+router.get('/', mantenimientosController.obtenerMantenimientos);
+// Obtener los mantenimientos del usuario autenticado
+router.get('/mis-mantenimientos',mantenimientosController.obtenerMisMantenimientos);
+router.get('/:id', mantenimientosController.obtenerMantenimientoById);
+router.post('/', mantenimientosController.crearMantenimiento);
+router.put('/:id/estado', mantenimientosController.actualizarMantenimientoEstado);
+router.put('/:id', mantenimientosController.actualizarMantenimiento);
+router.delete('/:id', mantenimientosController.eliminarMantenimiento);
 module.exports = router;

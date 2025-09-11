@@ -5,7 +5,7 @@ const BASE_URL = 'https://api.openweathermap.org/data/2.5/weather';
 const CITY = 'Facatativa';
 
 // --- Obtener clima actual ---
-const getCurrentWeather = async () => {
+const obtenerClimaActual = async () => {
   const url = `${BASE_URL}?q=${CITY}&appid=${API_KEY}&units=metric&lang=es`;
 
   const resp = await fetch(url);
@@ -31,29 +31,34 @@ const evaluarMantenimiento = (weatherData) => {
   return { decision: 'Mantener', razon: 'Clima moderado' };
 };
 
-// --- Endpoint: mantenimientos del mes con sugerencias ---
-const getMantenimientoDecision = async (req, res) => {
+// --- Endpoint: mantenimientos de la semana con sugerencias ---
+const obtenerMantenimientoDecision = async (req, res) => {
   try {
-    // 1️⃣ Calcular primer y último día del mes actual
+    // 1️⃣ Calcular primer y último día de la semana actual
     const hoy = new Date();
-    const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-    const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+    const primerDia = new Date(hoy);
+    primerDia.setDate(hoy.getDate() - hoy.getDay() + (hoy.getDay() === 0 ? -6 : 1)); // Lunes
+    primerDia.setHours(0, 0, 0, 0);
+    
+    const ultimoDia = new Date(primerDia);
+    ultimoDia.setDate(primerDia.getDate() + 6); // Domingo
+    ultimoDia.setHours(23, 59, 59, 999);
 
-    // 2️⃣ Consultar mantenimientos programados del mes
+    // 2️⃣ Consultar mantenimientos programados de la semana
     const query = `
       SELECT id, nombre, fecha_programada, estado
       FROM mantenimientos
-      WHERE fecha_programada BETWEEN $1 AND $2
+      WHERE fecha_programada::date BETWEEN $1::date AND $2::date
       ORDER BY fecha_programada
     `;
     const { rows: mantenimientos } = await pool.query(query, [primerDia, ultimoDia]);
 
     if (mantenimientos.length === 0) {
-      return res.json({ message: 'No hay mantenimientos programados este mes', mantenimientos: [] });
+      return res.json({ message: 'No hay mantenimientos programados esta semana', mantenimientos: [] });
     }
 
     // 3️⃣ Obtener clima actual
-    const weatherData = await getCurrentWeather();
+    const weatherData = await obtenerClimaActual();
 
     // 4️⃣ Agregar decisión predictiva a cada mantenimiento
     const mantenimientosConDecision = mantenimientos.map(m => {
@@ -68,4 +73,4 @@ const getMantenimientoDecision = async (req, res) => {
   }
 };
 
-module.exports = { getMantenimientoDecision };
+module.exports = { obtenerMantenimientoDecision };

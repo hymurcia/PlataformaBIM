@@ -2,7 +2,7 @@ const API_KEY = 'ee2ea746561151f1d7ceb05f75e004eb';
 const BASE_URL = 'https://api.openweathermap.org/data/2.5/weather';
 
 // Obtener clima de Facatativá
-const getWeatherFacatativa = async (req, res) => {
+const obtenerClimaFacatativa = async (req, res) => {
   const city = 'Facatativa';
   const url = `${BASE_URL}?q=${encodeURIComponent(city)}&appid=${API_KEY}&units=metric&lang=es`;
 
@@ -21,5 +21,5 @@ const getWeatherFacatativa = async (req, res) => {
 };
 
 module.exports = {
-  getWeatherFacatativa
+  obtenerClimaFacatativa
 };

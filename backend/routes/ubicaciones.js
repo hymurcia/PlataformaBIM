@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { getUbicaciones } = require('../controllers/ubicacionesController');
+const { obtenerUbicaciones } = require('../controllers/ubicacionesController');
 
 // GET /ubicaciones
-router.get('/', getUbicaciones);
+router.get('/', obtenerUbicaciones);
 
 module.exports = router;

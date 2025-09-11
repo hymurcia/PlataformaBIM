@@ -1,7 +1,7 @@
 const pool = require('../db'); // tu conexión a PostgreSQL
 
 // Obtener todas las ubicaciones
-const getUbicaciones = async (req, res) => {
+const obtenerUbicaciones = async (req, res) => {
   try {
     const result = await pool.query('SELECT id, nombre, area, bloque, piso, salon FROM ubicaciones');
     res.json(result.rows); // devuelve [{ id, nombre }, ...]
@@ -11,4 +11,4 @@ const getUbicaciones = async (req, res) => {
   }
 };
 
-module.exports = { getUbicaciones };
+module.exports = { obtenerUbicaciones };

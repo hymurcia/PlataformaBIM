@@ -1,9 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const { obtenerMetricas } = require('../controllers/metricasController');
+const { 
+  obtenerMetricas, 
+  obtenerMetricasMantenimientos 
+} = require('../controllers/metricasController');
 const checkRole = require('../middleware/roles');
 
-// Ruta protegida para métricas
-router.get('/', checkRole([1, 2]), obtenerMetricas);
+// 📊 Métricas de incidentes
+router.get('/incidentes', checkRole([1, 2]), obtenerMetricas);
+
+// 🛠️ Métricas de mantenimientos
+router.get('/mantenimientos', checkRole([1, 2]), obtenerMetricasMantenimientos);
 
 module.exports = router;

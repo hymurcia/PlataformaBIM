@@ -1,9 +1,9 @@
 const pool = require('../db'); // conexión a PostgreSQL (pg.Pool)
 
 // ==========================
-// Obtener todos los mantenimientos con el nombre del responsable
+// Obtener todos los mantenimientos con información completa
 // ==========================
-const getMantenimientos = async (req, res) => {
+const obtenerMantenimientos = async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -14,17 +14,24 @@ const getMantenimientos = async (req, res) => {
         m.estado,
         m.frecuencia,
         m.dias,
-        c.nombre AS componente, 
         m.comentarios,
         m.fecha_ultima_ejecucion,
         m.operario_id,
+        m.componente_id,
+        m.ubicacion_id,
+        c.nombre AS componente_nombre,
+        ubi.nombre AS ubicacion_nombre,
+        ubi.bloque AS ubicacion_bloque,
+        ubi.piso AS ubicacion_piso,
+        ubi.salon AS ubicacion_salon,
         COALESCE(u.nombre, 'No asignado') AS responsable_nombre,
         COALESCE(u.apellido, 'No asignado') AS responsable_apellido,
         COALESCE(r.especialidad, 'No asignada') AS especialidad
       FROM mantenimientos m
       LEFT JOIN usuarios u ON u.id = m.operario_id
       LEFT JOIN responsables r ON r.usuario_id = m.operario_id
-      LEFT JOIN componentes c ON c.id = m.componente_id 
+      LEFT JOIN componentes c ON c.id = m.componente_id
+      LEFT JOIN ubicaciones ubi ON ubi.id = m.ubicacion_id
       ORDER BY m.id;
     `);
 
@@ -35,72 +42,64 @@ const getMantenimientos = async (req, res) => {
   }
 };
 
-
 // ==========================
 // Obtener mis mantenimientos (según usuario logueado)
 // ==========================
-const getMisMantenimientos = async (req, res) => {
+const obtenerMisMantenimientos = async (req, res) => {
   try {
-    const usuarioId = req.user?.id;
-    if (!usuarioId) {
-      return res.status(401).json({ error: 'Usuario no autenticado' });
-    }
+    const usuarioId = req.user.id;
 
-    // Buscar el responsable asociado al usuario
-    const resp = await pool.query(
-      "SELECT id FROM responsables WHERE usuario_id = $1",
+    // buscar responsable asociado al usuario
+    const respRes = await pool.query(
+      `SELECT id FROM responsables WHERE usuario_id = $1 AND activo = true`,
       [usuarioId]
     );
 
-    if (resp.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ error: "No se encontró responsable asignado a este usuario" });
+    const responsable = respRes.rows[0];
+    if (!responsable) {
+      return res.status(403).json({ error: 'No eres un responsable válido' });
     }
 
-    const responsableId = resp.rows[0].id;
+    // traer mantenimientos asignados a este responsable
+    const { rows } = await pool.query(
+      `SELECT m.id, m.descripcion, m.estado, m.fecha_programada
+       FROM mantenimientos m
+       INNER JOIN asignaciones a ON a.mantenimiento_id = m.id
+       WHERE a.responsable_id = $1`,
+      [responsable.id]
+    );
 
-    // Consultar los mantenimientos asignados a ese responsable
-    const result = await pool.query(`
-      SELECT 
-        m.*,
-        r.id AS responsable_id,
-        u.id AS usuario_id,
-        u.nombre || ' ' || u.apellido AS responsable_nombre,
-        r.especialidad
-      FROM mantenimientos m
-      LEFT JOIN responsables r ON m.operario_id = r.id
-      LEFT JOIN usuarios u ON r.usuario_id = u.id
-      WHERE m.operario_id = $1
-      ORDER BY m.fecha_programada ASC
-    `, [responsableId]);
-
-    res.json(result.rows);
-  } catch (error) {
-    console.error("Error al obtener mis mantenimientos:", error);
-    res.status(500).json({
-      error: "Error interno al obtener mis mantenimientos",
-      detalle: error.message
-    });
+    res.json(rows);
+  } catch (err) {
+    console.error('Error en getMisMantenimientos:', err.message);
+    res.status(500).json({ error: 'Error al obtener mantenimientos' });
   }
 };
+
 
 // ==========================
 // Obtener un mantenimiento por ID
 // ==========================
-const getMantenimientoById = async (req, res) => {
+const obtenerMantenimientoById = async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query(`
       SELECT 
         m.*,
-        r.id AS responsable_id,
-        u.id AS usuario_id,
-        u.nombre || ' ' || u.apellido AS responsable_nombre,
-        r.especialidad
+        ubi.nombre AS ubicacion_nombre,
+        ubi.bloque AS ubicacion_bloque,
+        ubi.piso AS ubicacion_piso,
+        ubi.salon AS ubicacion_salon,
+        ubi.id AS ubicacion_id,
+        c.nombre AS componente_nombre,
+        c.id AS componente_id,
+        op.nombre AS operario_nombre,
+        op.apellido AS operario_apellido,
+        op.id AS operario_id
       FROM mantenimientos m
-      LEFT JOIN responsables r ON m.operario_id = r.id
-      LEFT JOIN usuarios u ON r.usuario_id = u.id
+      LEFT JOIN ubicaciones ubi ON ubi.id = m.ubicacion_id
+      LEFT JOIN componentes c ON c.id = m.componente_id
+      LEFT JOIN usuarios op ON op.id = m.operario_id
       WHERE m.id = $1
     `, [id]);
 
@@ -118,16 +117,45 @@ const getMantenimientoById = async (req, res) => {
 // ==========================
 // Crear un mantenimiento
 // ==========================
-const createMantenimiento = async (req, res) => {
-  const { nombre, descripcion, frecuencia, fecha_ultima_ejecucion, operario_id } = req.body;
+const crearMantenimiento = async (req, res) => {
+  const { 
+    nombre, 
+    descripcion, 
+    frecuencia, 
+    fecha_programada, 
+    operario_id, 
+    componente_id, 
+    ubicacion_id, 
+    dias,
+    comentarios 
+  } = req.body;
+
   try {
+    if (!componente_id && !ubicacion_id) {
+      return res.status(400).json({ 
+        error: 'Debe especificar un componente o una ubicación' 
+      });
+    }
+
     const result = await pool.query(
       `INSERT INTO mantenimientos 
-        (nombre, descripcion, frecuencia, fecha_ultima_ejecucion, operario_id) 
-       VALUES ($1, $2, $3, $4, $5)
+        (nombre, descripcion, frecuencia, fecha_programada, 
+         operario_id, componente_id, ubicacion_id, dias, comentarios) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [nombre, descripcion, frecuencia, fecha_ultima_ejecucion || null, operario_id || null]
+      [
+        nombre, 
+        descripcion, 
+        frecuencia, 
+        fecha_programada || null, 
+        operario_id || null, 
+        componente_id || null, 
+        ubicacion_id || null,
+        dias || null,
+        comentarios || null
+      ]
     );
+    
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Error al crear mantenimiento:', error.message);
@@ -138,20 +166,52 @@ const createMantenimiento = async (req, res) => {
 // ==========================
 // Actualizar un mantenimiento
 // ==========================
-const updateMantenimiento = async (req, res) => {
+const actualizarMantenimiento = async (req, res) => {
   const { id } = req.params;
-  const { nombre, descripcion, frecuencia, fecha_ultima_ejecucion, operario_id } = req.body;
+  const { 
+    nombre, 
+    descripcion, 
+    frecuencia, 
+    fecha_programada, 
+    operario_id, 
+    componente_id, 
+    ubicacion_id, 
+    dias,
+    comentarios 
+  } = req.body;
+
   try {
+    if (!componente_id && !ubicacion_id) {
+      return res.status(400).json({ 
+        error: 'Debe especificar un componente o una ubicación' 
+      });
+    }
+
     const result = await pool.query(
       `UPDATE mantenimientos 
        SET nombre = $1,
            descripcion = $2,
            frecuencia = $3,
-           fecha_ultima_ejecucion = $4,
-           operario_id = $5
-       WHERE id = $6
+           fecha_programada = $4,
+           operario_id = $5,
+           componente_id = $6,
+           ubicacion_id = $7,
+           dias = $8,
+           comentarios = $9
+       WHERE id = $10
        RETURNING *`,
-      [nombre, descripcion, frecuencia, fecha_ultima_ejecucion || null, operario_id || null, id]
+      [
+        nombre, 
+        descripcion, 
+        frecuencia, 
+        fecha_programada || null, 
+        operario_id || null, 
+        componente_id || null, 
+        ubicacion_id || null,
+        dias || null,
+        comentarios || null,
+        id
+      ]
     );
 
     if (result.rows.length === 0) {
@@ -166,14 +226,13 @@ const updateMantenimiento = async (req, res) => {
 };
 
 // ==========================
-// Actualizar un mantenimiento
+// Actualizar estado de un mantenimiento
 // ==========================
-const updateMantenimientoEstado = async (req, res) => {
+const actualizarMantenimientoEstado = async (req, res) => {
   const { id } = req.params;
   const { estado, comentarios } = req.body;
 
   try {
-    // 🔹 Obtener el mantenimiento actual
     const mantenimientoResult = await pool.query(
       `SELECT * FROM mantenimientos WHERE id = $1`,
       [id]
@@ -184,38 +243,36 @@ const updateMantenimientoEstado = async (req, res) => {
     }
 
     const mantenimiento = mantenimientoResult.rows[0];
-
     let fechaUltimaEjecucion = mantenimiento.fecha_ultima_ejecucion;
     let fechaProgramada = mantenimiento.fecha_programada;
 
-    if (estado.toLowerCase() === "completado") {
-      // 🔹 Guardar la fecha actual como última ejecución
+    if (estado && estado.toLowerCase() === "completado") {
       const ahora = new Date();
       fechaUltimaEjecucion = ahora;
-      fechaProgramada = new Date(ahora);
 
-      // 🔹 Calcular la próxima fecha según frecuencia
-      switch (mantenimiento.frecuencia?.toLowerCase()) {
-        case "diario":
-          fechaProgramada.setDate(fechaProgramada.getDate() + 1);
-          break;
-        case "semanal":
-          fechaProgramada.setDate(fechaProgramada.getDate() + 7);
-          break;
-        case "mensual":
-          fechaProgramada.setMonth(fechaProgramada.getMonth() + 1);
-          break;
-        case "trimestral":
-          fechaProgramada.setMonth(fechaProgramada.getMonth() + 3);
-          break;
-        case "anual":
-          fechaProgramada.setFullYear(fechaProgramada.getFullYear() + 1);
-          break;
-        default:
-          fechaProgramada = ahora;
+      if (mantenimiento.frecuencia) {
+        fechaProgramada = new Date(ahora);
+        switch (mantenimiento.frecuencia.toLowerCase()) {
+          case "diario":
+            fechaProgramada.setDate(fechaProgramada.getDate() + 1);
+            break;
+          case "semanal":
+            fechaProgramada.setDate(fechaProgramada.getDate() + 7);
+            break;
+          case "mensual":
+            fechaProgramada.setMonth(fechaProgramada.getMonth() + 1);
+            break;
+          case "trimestral":
+            fechaProgramada.setMonth(fechaProgramada.getMonth() + 3);
+            break;
+          case "anual":
+            fechaProgramada.setFullYear(fechaProgramada.getFullYear() + 1);
+            break;
+          default:
+            fechaProgramada = mantenimiento.fecha_programada;
+        }
       }
 
-      // 🔹 UPDATE con parámetros
       const result = await pool.query(
         `UPDATE mantenimientos
          SET estado = $1,
@@ -229,7 +286,6 @@ const updateMantenimientoEstado = async (req, res) => {
 
       return res.json(result.rows[0]);
     } else {
-      // 🔹 Si no es "completado", solo actualiza estado y comentarios
       const result = await pool.query(
         `UPDATE mantenimientos
          SET estado = $1,
@@ -247,11 +303,10 @@ const updateMantenimientoEstado = async (req, res) => {
   }
 };
 
-
 // ==========================
 // Eliminar un mantenimiento
 // ==========================
-const deleteMantenimiento = async (req, res) => {
+const eliminarMantenimiento = async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query(
@@ -269,11 +324,11 @@ const deleteMantenimiento = async (req, res) => {
 };
 
 module.exports = {
-  getMantenimientos,
-  getMantenimientoById,
-  getMisMantenimientos,
-  createMantenimiento,
-  updateMantenimiento,
-  updateMantenimientoEstado,
-  deleteMantenimiento
+  obtenerMantenimientos,
+  obtenerMantenimientoById,
+  obtenerMisMantenimientos,
+  crearMantenimiento,
+  actualizarMantenimiento,
+  actualizarMantenimientoEstado,
+  eliminarMantenimiento
 };

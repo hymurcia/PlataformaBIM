@@ -105,7 +105,7 @@ const crearIncidenteInvitado = async (req, res) => {
 // =========================
 // Obtener incidente por ID
 // =========================
-const getIncidenteById = async (req, res) => {
+const obtenerIncidenteById = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -155,7 +155,7 @@ const getIncidenteById = async (req, res) => {
 // =========================
 // Obtener imágenes de incidente
 // =========================
-const getImagenesIncidente = async (req, res) => {
+const obtenerImagenesIncidente = async (req, res) => {
   try {
     const { id } = req.params;
     const { rows } = await pool.query(
@@ -168,6 +168,49 @@ const getImagenesIncidente = async (req, res) => {
     res.status(500).json({ error: 'Error al obtener imágenes' });
   }
 };
+
+// =====================
+//detalles del incidente
+// =====================
+const obtenerDetalleIncidente = async (req, res) => {
+  try {
+    const { id: asignacionId } = req.params; // ID de la asignación
+
+    // 1️⃣ Validar que sea un número
+    if (!asignacionId || isNaN(asignacionId)) {
+      return res.status(400).json({ error: 'ID de asignación no válido' });
+    }
+
+    // 2️⃣ Consulta a la base de datos
+    const query = `
+      SELECT i.*
+      FROM incidente i
+      INNER JOIN asignaciones a ON i.id = a.incidente_id
+      WHERE a.id = $1
+    `;
+
+    const { rows } = await pool.query(query, [parseInt(asignacionId)]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Detalle del incidente no encontrado' });
+    }
+
+    // 3️⃣ Devolver directamente el primer registro
+    res.json(rows[0]);
+
+  } catch (err) {
+    console.error('Error en obtenerDetalleIncidente:', err);
+    res.status(500).json({
+      error: 'Error al obtener detalles del incidente',
+      message: err.message
+    });
+  }
+};
+
+module.exports = {
+  obtenerDetalleIncidente
+};
+
 
 // =========================
 // Cambiar estado de incidente
@@ -204,7 +247,8 @@ const actualizarEstadoIncidente = async (req, res) => {
 module.exports = {
   crearIncidente,
   crearIncidenteInvitado,
-  getIncidenteById,
-  getImagenesIncidente,
+  obtenerDetalleIncidente,
+  obtenerIncidenteById,
+  obtenerImagenesIncidente,
   actualizarEstadoIncidente
 };
