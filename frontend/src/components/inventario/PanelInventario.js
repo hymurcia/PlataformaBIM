@@ -68,7 +68,7 @@ const InventarioItems = () => {
   const fetchData = async () => {
     try {
       const resItems = await axios.get(API_URL_ITEMS);
-      console.log("📥 Items cargados:", resItems.data);
+      //console.log("📥 Items cargados:", resItems.data);
       setItems(resItems.data);
 
       // Mapeamos para unir inventario con items
@@ -85,7 +85,7 @@ const InventarioItems = () => {
         fecha_actualizacion: item.fecha_actualizacion || "",
         categoria: item.categoria_id,
       }));
-      console.log("📦 Inventario mapeado:", dataInv);
+      //console.log("📦 Inventario mapeado:", dataInv);
       setInventario(dataInv);
     } catch (err) {
       console.error("❌ Error cargando data:", err);
@@ -115,18 +115,18 @@ const InventarioItems = () => {
     Object.keys(formItem).forEach((key) => {
       if (formItem[key] !== null) data.append(key, formItem[key]);
     });
-    console.log("📤 Datos item a enviar:", Object.fromEntries(data.entries()));
+   // console.log("📤 Datos item a enviar:", Object.fromEntries(data.entries()));
     try {
       if (editandoItem) {
         await axios.put(`${API_URL_ITEMS}/${formItem.id}`, data, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        console.log("✅ Item actualizado");
+       // console.log("✅ Item actualizado");
       } else {
         await axios.post(API_URL_ITEMS, data, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        console.log("✅ Item creado");
+       // console.log("✅ Item creado");
       }
       setShowModalItem(false);
       setEditandoItem(null);
@@ -150,7 +150,7 @@ const InventarioItems = () => {
     if (window.confirm("¿Eliminar este item?")) {
       try {
         await axios.delete(`${API_URL_ITEMS}/${id}`);
-        console.log("🗑️ Item eliminado:", id);
+      //  console.log("🗑️ Item eliminado:", id);
         fetchData();
       } catch (err) {
         console.error("❌ Error eliminando item:", err);
@@ -170,10 +170,10 @@ const InventarioItems = () => {
   };
 
   const guardarInventario = async (item_id) => {
-    console.log("📤 Actualizando inventario de item_id:", item_id, "con datos:", formInv);
+   // console.log("📤 Actualizando inventario de item_id:", item_id, "con datos:", formInv);
     try {
       await axios.put(`${API_URL_INVENTARIO}/${item_id}`, formInv);
-      console.log("✅ Inventario actualizado para item_id:", item_id);
+     // console.log("✅ Inventario actualizado para item_id:", item_id);
       setEditandoInv(null);
       fetchData();
     } catch (err) {
@@ -190,10 +190,10 @@ const InventarioItems = () => {
   };
 
   const crearInventario = async () => {
-    console.log("📤 Creando inventario nuevo:", nuevoInventario);
+   // console.log("📤 Creando inventario nuevo:", nuevoInventario);
     try {
       await axios.post(API_URL_INVENTARIO, nuevoInventario);
-      console.log("✅ Inventario creado");
+     // console.log("✅ Inventario creado");
       setShowModalInventario(false);
       setNuevoInventario({
         item_id: "",
@@ -300,7 +300,7 @@ const InventarioItems = () => {
                         variant="primary"
                         size="sm"
                         onClick={() => {
-                          console.log("✏️ Editando inventario de:", inv);
+                         // console.log("✏️ Editando inventario de:", inv);
                           setEditandoInv(inv.item_id);
                           setFormInv({
                             cantidad: inv.cantidad,
@@ -373,7 +373,7 @@ const InventarioItems = () => {
                       variant="warning"
                       size="sm"
                       onClick={() => {
-                        console.log("✏️ Editando item:", item);
+                       // console.log("✏️ Editando item:", item);
                         setEditandoItem(item.id);
                         setFormItem({
                           ...item,

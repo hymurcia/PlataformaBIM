@@ -35,6 +35,7 @@ const predictivoRoutes = require('./routes/predictivo');
 const inventarioRoutes = require('./routes/inventario');
 const itemRoutes = require('./routes/item');
 const informesRoutes = require('./routes/informes');
+const notificacionesRoutes = require('./routes/notificaciones');
 // Usar rutas
 app.use('/auth', authRoutes);
 app.use('/perfil', perfilRoutes);
@@ -52,6 +53,7 @@ app.use('/predictivo', predictivoRoutes);
 app.use('/inventario', inventarioRoutes);
 app.use('/items', itemRoutes);
 app.use('/informes', informesRoutes);
+//app.use('/notificaciones', notificacionesRoutes);
 
 // =========================
 // Start
