@@ -18,7 +18,7 @@ import Mantenimientos from './components/Mantenimientos';
 import Clima from './components/Clima';
 import PanelBim from './components/PanelBim';
 import PredictivoMantenimiento from './components/Predictivo';
-import Footer from './components/PiePagina';
+//import Footer from './components/PiePagina';
 import CrudUsuarios from './components/CrudUsuarios';
 import Notificaciones from './components/Notificaciones';
 import PanelInformes from './components/PanelInformes';
@@ -202,7 +202,7 @@ function App() {
         <Route
           path="/informes"
           element={
-            <PrivateRoute roles={[2]} auth={auth}>
+            <PrivateRoute roles={[1,2]} auth={auth}>
               <PanelInformes />
             </PrivateRoute>
           }

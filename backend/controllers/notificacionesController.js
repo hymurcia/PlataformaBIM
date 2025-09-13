@@ -1,60 +1,96 @@
-const pool = require('../db'); // tu conexión a PostgreSQL
+// controllers/notificacionesController.js
+const pool = require("../db"); // conexión a PostgreSQL
+let io; // se inyecta desde app.js
 
-// Función para generar recomendaciones con prioridad
-const generarRecomendaciones = async () => {
-  // Ejemplo: podrías leer datos reales de inventario, clima, revisiones
-  const recomendaciones = [
-    {
-      area: "Desagües",
-      recomendacion: "Revisar y limpiar para prevenir inundaciones",
-      prioridad: "alta", // alta, media, baja
-    },
-    {
-      area: "Sistemas eléctricos",
-      recomendacion: "Verificar conexiones y tableros",
-      prioridad: "media",
-    },
-    {
-      area: "Extintores y seguridad",
-      recomendacion: "Revisar carga y vencimiento",
-      prioridad: "alta",
-    },
-    {
-      area: "Techos y canaletas",
-      recomendacion: "Limpiar hojas y obstrucciones",
-      prioridad: "media",
-    },
-  ];
-
-  // Aquí puedes agregar lógica dinámica, por ejemplo:
-  // Si el inventario de desagües está bajo o pronóstico de lluvia alto → prioridad alta
-  return recomendaciones;
+// 🔹 Inicializar Socket.IO en el controlador
+const setSocket = (socketIO) => {
+  io = socketIO;
 };
 
-const obtenerNotificaciones = async (req, res) => {
+// 🔹 Crear una notificación
+const crearNotificacion = async (req, res) => {
   try {
-    // 1️⃣ Notificaciones del sistema
-    const resultNotificaciones = await pool.query(`
-      SELECT id, mensaje, fecha_creacion AS fecha
-      FROM sistema_notificaciones
-      WHERE activo = true
-      ORDER BY fecha_creacion DESC
-      LIMIT 10
-    `);
+    const { usuario_id, titulo, mensaje, tipo, link } = req.body;
 
-    const notificaciones = resultNotificaciones.rows;
+    if (!usuario_id || isNaN(parseInt(usuario_id))) {
+      return res.status(400).json({ error: "❌ usuario_id inválido o no enviado" });
+    }
 
-    // 2️⃣ Recomendaciones preventivas avanzadas
-    const recomendaciones = await generarRecomendaciones();
+    const result = await pool.query(
+      `INSERT INTO notificaciones (usuario_id, titulo, mensaje, tipo, link, fecha_creacion, leida)
+       VALUES ($1, $2, $3, $4, $5, NOW(), FALSE)
+       RETURNING *`,
+      [usuario_id, titulo, mensaje, tipo, link]
+    );
 
-    res.json({
-      notificaciones,
-      recomendaciones,
-    });
+    const notificacion = result.rows[0];
+
+    // Emitir en tiempo real al usuario específico
+    if (io) {
+      io.to(`usuario_${usuario_id}`).emit("nueva_notificacion", notificacion);
+    }
+
+    res.status(201).json(notificacion);
   } catch (error) {
-    console.error("Error obteniendo notificaciones:", error);
-    res.status(500).json({ error: "Error al obtener notificaciones" });
+    console.error("Error creando notificación:", error);
+    res.status(500).json({ error: "Error creando notificación" });
   }
 };
 
-module.exports = { obtenerNotificaciones };
+// 🔹 Obtener notificaciones de un usuario
+const obtenerNotificaciones = async (req, res) => {
+  try {
+    const { usuario_id } = req.params;
+
+    if (!usuario_id || isNaN(parseInt(usuario_id))) {
+      return res.status(400).json({ error: "❌ usuario_id inválido o no enviado" });
+    }
+
+    const result = await pool.query(
+      `SELECT * FROM notificaciones 
+       WHERE usuario_id = $1
+       ORDER BY fecha_creacion DESC`,
+      [usuario_id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error obteniendo notificaciones:", error);
+    res.status(500).json({ error: "Error obteniendo notificaciones" });
+  }
+};
+
+// 🔹 Marcar notificación como leída
+const marcarLeida = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({ error: "❌ id inválido o no enviado" });
+    }
+
+    const result = await pool.query(
+      `UPDATE notificaciones
+       SET leida = TRUE, fecha_lectura = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Notificación no encontrada" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error marcando notificación como leída:", error);
+    res.status(500).json({ error: "Error actualizando notificación" });
+  }
+};
+
+module.exports = {
+  setSocket,
+  crearNotificacion,
+  obtenerNotificaciones,
+  marcarLeida,
+};
