@@ -9,11 +9,16 @@ import {
   Tabs,
   Tab,
   Image,
+  Badge,
+  Container,
+  Card,
+  Row,
+  Col,
 } from "react-bootstrap";
 
-// ✅ URLs corregidas
-const API_URL_ITEMS = "http://localhost:5000/items";
-const API_URL_INVENTARIO = "http://localhost:5000/inventario";
+// URLs desde .env o fallback
+const API_URL_ITEMS = process.env.REACT_APP_API_URL_ITEMS || "http://localhost:5000/items";
+const API_URL_INVENTARIO = process.env.REACT_APP_API_URL_INVENTARIO || "http://localhost:5000/inventario";
 
 const InventarioItems = () => {
   const [items, setItems] = useState([]);
@@ -62,9 +67,7 @@ const InventarioItems = () => {
     { id: 8, nombre: "Otros" },
   ];
 
-  // ============================
   // Fetch Items + Inventario
-  // ============================
   const fetchData = async () => {
     try {
       const resItems = await axios.get(API_URL_ITEMS);
@@ -98,9 +101,7 @@ const InventarioItems = () => {
     fetchData();
   }, []);
 
-  // ============================
   // CRUD Items
-  // ============================
   const handleItemChange = (e) => {
     setFormItem({
       ...formItem,
@@ -158,9 +159,7 @@ const InventarioItems = () => {
     }
   };
 
-  // ============================
   // CRUD Inventario
-  // ============================
   const handleInvChange = (e) => {
     setFormInv({
       ...formInv,
@@ -212,194 +211,118 @@ const InventarioItems = () => {
     setShowModalImagen(true);
   };
 
-  if (loading) return <Spinner animation="border" />;
+  if (loading) return <div className="text-center mt-5"><Spinner animation="border" /></div>;
 
   return (
-    <div className="container mt-4">
-      <h2>⚙️ Módulo de Inventario y Items</h2>
+    <Container className="mt-4">
+      <Card className="shadow-lg p-4 rounded-4" style={{ backgroundColor: "#f8f9fa" }}>
+        <h2 className="text-center mb-4" style={{ color: "#00482B", fontWeight: "bold" }}>⚙️ Módulo de Inventario y Items</h2>
 
-      <Tabs defaultActiveKey="inventario" className="mb-3">
-        {/* TAB INVENTARIO */}
-        <Tab eventKey="inventario" title="📦 Inventario">
-          <Button className="mb-3" onClick={() => setShowModalInventario(true)}>
-            ➕ Ingresar al Inventario
-          </Button>
-          <Table striped bordered hover responsive>
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Vida Útil</th>
-                <th>Categoría</th>
-                <th>Cantidad</th>
-                <th>Costo Unitario</th>
-                <th>Ubicación</th>
-                <th>Última Actualización</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inventario.map((inv) => (
-                <tr key={inv.item_id}>
-                  <td>{inv.nombre}</td>
-                  <td>{inv.vida_util ? `${inv.vida_util} meses` : "—"}</td>
-                  <td>
-                    {categorias.find((c) => c.id == inv.categoria)?.nombre ||
-                      "—"}
-                  </td>
-                  <td>
-                    {editandoInv === inv.item_id ? (
-                      <Form.Control
-                        type="number"
-                        name="cantidad"
-                        defaultValue={inv.cantidad}
-                        onChange={handleInvChange}
-                      />
-                    ) : (
-                      inv.cantidad
-                    )}
-                  </td>
-                  <td>
-                    {editandoInv === inv.item_id ? (
-                      <Form.Control
-                        type="number"
-                        step="0.01"
-                        name="costo_unitario"
-                        defaultValue={inv.costo_unitario}
-                        onChange={handleInvChange}
-                      />
-                    ) : (
-                      `$${Number(inv.costo_unitario).toFixed(2)}`
-                    )}
-                  </td>
-                  <td>Almacén</td>
-                  <td>
-                    {inv.fecha_actualizacion
-                      ? new Date(inv.fecha_actualizacion).toLocaleString()
-                      : "—"}
-                  </td>
-                  <td>
-                    {editandoInv === inv.item_id ? (
-                      <>
-                        <Button
-                          variant="success"
-                          size="sm"
-                          onClick={() => guardarInventario(inv.item_id)} // ✅ ahora usa item_id
-                        >
-                          Guardar
-                        </Button>{" "}
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setEditandoInv(null)}
-                        >
-                          Cancelar
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => {
-                         // console.log("✏️ Editando inventario de:", inv);
-                          setEditandoInv(inv.item_id);
-                          setFormInv({
-                            cantidad: inv.cantidad,
-                            costo_unitario: inv.costo_unitario,
-                          });
-                        }}
-                      >
-                        Editar
-                      </Button>
-                    )}
-                  </td>
+        <Tabs defaultActiveKey="inventario" className="mb-3" fill>
+          {/* TAB INVENTARIO */}
+          <Tab eventKey="inventario" title="📦 Inventario">
+            <div className="d-flex justify-content-end mb-2">
+              <Button variant="success" onClick={() => setShowModalInventario(true)}>➕ Ingresar al Inventario</Button>
+            </div>
+            <Table striped bordered hover responsive className="align-middle">
+              <thead className="table-dark">
+                <tr>
+                  <th>Item</th>
+                  <th>Vida Útil</th>
+                  <th>Categoría</th>
+                  <th>Cantidad</th>
+                  <th>Costo Unitario</th>
+                  <th>Ubicación</th>
+                  <th>Última Actualización</th>
+                  <th>Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
-        </Tab>
+              </thead>
+              <tbody>
+                {inventario.map((inv) => (
+                  <tr key={inv.item_id}>
+                    <td>{inv.nombre}</td>
+                    <td>{inv.vida_util ? `${inv.vida_util} meses` : "—"}</td>
+                    <td>{categorias.find((c) => c.id == inv.categoria)?.nombre || "—"}</td>
+                    <td>
+                      {editandoInv === inv.item_id ? (
+                        <Form.Control type="number" name="cantidad" defaultValue={inv.cantidad} onChange={handleInvChange} />
+                      ) : (
+                        inv.cantidad
+                      )}
+                    </td>
+                    <td>
+                      {editandoInv === inv.item_id ? (
+                        <Form.Control type="number" step="0.01" name="costo_unitario" defaultValue={inv.costo_unitario} onChange={handleInvChange} />
+                      ) : (
+                        <Badge bg="info">${Number(inv.costo_unitario).toFixed(2)}</Badge>
+                      )}
+                    </td>
+                    <td>{inv.ubicacion_actual}</td>
+                    <td>{inv.fecha_actualizacion ? new Date(inv.fecha_actualizacion).toLocaleString() : "—"}</td>
+                    <td>
+                      {editandoInv === inv.item_id ? (
+                        <>
+                          <Button variant="success" size="sm" onClick={() => guardarInventario(inv.item_id)}>💾 Guardar</Button>{" "}
+                          <Button variant="secondary" size="sm" onClick={() => setEditandoInv(null)}>✖ Cancelar</Button>
+                        </>
+                      ) : (
+                        <Button variant="primary" size="sm" onClick={() => { setEditandoInv(inv.item_id); setFormInv({ cantidad: inv.cantidad, costo_unitario: inv.costo_unitario }); }}>✏️ Editar</Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </Tab>
 
-        {/* TAB ITEMS */}
-        <Tab eventKey="items" title="🛠️ Items">
-          <Button className="mb-3" onClick={() => setShowModalItem(true)}>
-            ➕ Nuevo Item
-          </Button>
-          <Table striped bordered hover responsive>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Descripción</th>
-                <th>Categoría</th>
-                <th>Ubicación</th>
-                <th>Vida Útil</th>
-                <th>Imagen</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.nombre}</td>
-                  <td>{item.descripcion}</td>
-                  <td>
-                    {categorias.find((c) => c.id == item.categoria_id)?.nombre ||
-                      "—"}
-                  </td>
-                  <td>Almacén</td>
-                  <td>
-                    {item.vida_util_meses
-                      ? `${item.vida_util_meses} meses`
-                      : "—"}
-                  </td>
-                  <td>
-                    {item.imagen_url ? (
-                      <Image
-                        src={`http://localhost:5000${item.imagen_url}`}
-                        alt={item.nombre}
-                        width={60}
-                        style={{ cursor: "pointer" }}
-                        onClick={() =>
-                          abrirPreviewImagen(
-                            `http://localhost:5000${item.imagen_url}`
-                          )
-                        }
-                        thumbnail
-                      />
-                    ) : (
-                      "Sin imagen"
-                    )}
-                  </td>
-                  <td>
-                    <Button
-                      variant="warning"
-                      size="sm"
-                      onClick={() => {
-                       // console.log("✏️ Editando item:", item);
-                        setEditandoItem(item.id);
-                        setFormItem({
-                          ...item,
-                          id: item.id,
-                          imagen: null,
-                          imagen_url: item.imagen_url || "",
-                        });
-                        setShowModalItem(true);
-                      }}
-                    >
-                      ✏️ Editar
-                    </Button>{" "}
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={() => eliminarItem(item.id)}
-                    >
-                      🗑️ Eliminar
-                    </Button>
-                  </td>
+          {/* TAB ITEMS */}
+          <Tab eventKey="items" title="🛠️ Items">
+            <div className="d-flex justify-content-end mb-2">
+              <Button variant="success" onClick={() => setShowModalItem(true)}>➕ Nuevo Item</Button>
+            </div>
+            <Table striped bordered hover responsive className="align-middle">
+              <thead className="table-dark">
+                <tr>
+                  <th>Nombre</th>
+                  <th>Descripción</th>
+                  <th>Categoría</th>
+                  <th>Ubicación</th>
+                  <th>Vida Útil</th>
+                  <th>Imagen</th>
+                  <th>Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
-        </Tab>
-      </Tabs>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.nombre}</td>
+                    <td>{item.descripcion}</td>
+                    <td>{categorias.find((c) => c.id == item.categoria_id)?.nombre || "—"}</td>
+                    <td>Almacén</td>
+                    <td>{item.vida_util_meses ? `${item.vida_util_meses} meses` : "—"}</td>
+                    <td>
+                      {item.imagen_url ? (
+                        <Image
+                          src={`${process.env.REACT_APP_API_URL_BASE || "http://localhost:5000"}${item.imagen_url}`}
+                          alt={item.nombre}
+                          width={60}
+                          style={{ cursor: "pointer" }}
+                          onClick={() => abrirPreviewImagen(`${process.env.REACT_APP_API_URL_BASE || "http://localhost:5000"}${item.imagen_url}`)}
+                          thumbnail
+                        />
+                      ) : "Sin imagen"}
+                    </td>
+                    <td>
+                      <Button variant="warning" size="sm" onClick={() => { setEditandoItem(item.id); setFormItem({ ...item, id: item.id, imagen: null, imagen_url: item.imagen_url || "" }); setShowModalItem(true); }}>✏️ Editar</Button>{" "}
+                      <Button variant="danger" size="sm" onClick={() => eliminarItem(item.id)}>🗑️ Eliminar</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </Tab>
+        </Tabs>
+      </Card>
 
       {/* Modal Crear/Editar Item */}
       <Modal show={showModalItem} onHide={() => setShowModalItem(false)}>
@@ -438,11 +361,7 @@ const InventarioItems = () => {
                 onChange={handleItemChange}
               >
                 <option value="">-- Selecciona Categoría --</option>
-                {categorias.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nombre}
-                  </option>
-                ))}
+                {categorias.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               </Form.Select>
             </Form.Group>
             <Form.Group className="mb-2">
@@ -475,9 +394,9 @@ const InventarioItems = () => {
               <Form.Label>Cambiar Imagen</Form.Label>
               <Form.Control type="file" name="imagen" onChange={handleItemChange} />
             </Form.Group>
-            <Button variant="success" type="submit">
-              {editandoItem ? "Actualizar" : "Crear"}
-            </Button>
+            <div className="text-end">
+              <Button variant="success" type="submit">{editandoItem ? "Actualizar" : "Crear"}</Button>
+            </div>
           </Form>
         </Modal.Body>
       </Modal>
@@ -500,11 +419,7 @@ const InventarioItems = () => {
                 onChange={handleNuevoInvChange}
               >
                 <option value="">-- Selecciona --</option>
-                {items.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.nombre} ({item.vida_util_meses} meses)
-                  </option>
-                ))}
+                {items.map((item) => <option key={item.id} value={item.id}>{item.nombre} ({item.vida_util_meses} meses)</option>)}
               </Form.Select>
             </Form.Group>
             <Form.Group className="mb-3">
@@ -562,7 +477,7 @@ const InventarioItems = () => {
           )}
         </Modal.Body>
       </Modal>
-    </div>
+    </Container>
   );
 };
 

@@ -340,7 +340,7 @@ const MetricasPanel = ({ auth }) => {
           <Card className="text-white bg-success shadow">
             <Card.Body>
               <Card.Title>Completados</Card.Title>
-              <h1>{metricasMantenimientos?.generales?.completados || 0}</h1>
+              <h1>{metricasMantenimientos?.generales?.completado || 0}</h1>
             </Card.Body>
           </Card>
         </Col>

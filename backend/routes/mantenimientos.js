@@ -12,5 +12,6 @@ router.get('/:id', mantenimientosController.obtenerMantenimientoById);
 router.post('/', mantenimientosController.crearMantenimiento);
 router.put('/:id/estado', mantenimientosController.actualizarMantenimientoEstado);
 router.put('/:id', mantenimientosController.actualizarMantenimiento);
+router.put("/:id/reprogramar", mantenimientosController.reprogramarMantenimiento);
 router.delete('/:id', mantenimientosController.eliminarMantenimiento);
 module.exports = router;

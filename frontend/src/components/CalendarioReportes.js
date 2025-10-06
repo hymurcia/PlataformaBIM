@@ -5,83 +5,87 @@ import 'moment/locale/es';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { OverlayTrigger, Tooltip, Modal, Badge, Button } from 'react-bootstrap';
+import { OverlayTrigger, Tooltip, Modal, Badge, Button, Container, Card, Spinner, Alert } from 'react-bootstrap';
+import facatativa2 from '../assets/facatativa-2.jpg';
 import './CalendarioReportes.css';
 
 moment.locale('es');
 const localizer = momentLocalizer(moment);
 
 const estadoColores = {
-  pendiente: '#f0ad4e',
-  asignado: '#ae33ff',
+  pendiente: '#FBE122',
+  asignado: '#008C75',
   en_proceso: '#5bc0de',
-  resuelto: '#5cb85c',
-  completado: '#5cb85c'
-};
-
-const tipoEventoColores = {
-  incidente: '#3174ad',
-  mantenimiento: '#8bc34a'
-};
-
-const frecuenciaColores = {
-  Diario: 'info',
-  Semanal: 'primary',
-  Mensual: 'secondary',
-  Trimestral: 'warning',
-  Anual: 'success',
-  pendiente: 'danger',
-  completado: 'success'
+  resuelto: '#28a745',
+  completado: '#28a745'
 };
 
 const tiposValidos = ['eléctrico', 'mecánico', 'seguridad', 'otro'];
 
 export default function CalendarioReportes({ auth }) {
   const [eventos, setEventos] = useState([]);
+  const [ubicaciones, setUbicaciones] = useState([]);
   const [vista, setVista] = useState(Views.MONTH);
   const [errorCarga, setErrorCarga] = useState(null);
   const [viewData, setViewData] = useState(null);
   const [showModalView, setShowModalView] = useState(false);
   const [fechaVista, setFechaVista] = useState(new Date());
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  const API_BASE_URL = 'http://localhost:5000';
 
   const formatDate = (fecha) => {
     if (!fecha) return "No registrada";
     const d = new Date(fecha);
-    return isNaN(d) ? 'Fecha inválida' : d.toLocaleDateString('es-CO', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    return isNaN(d) ? 'Fecha inválida' : moment(d).format('DD [de] MMMM [de] YYYY, h:mm:ss a');
   };
 
   const calcularProximaFecha = (ultima, frecuencia) => {
     if (!ultima || !frecuencia) return 'No definida';
-    let fecha = new Date(ultima);
+    let fecha = moment(ultima);
     switch (frecuencia?.toLowerCase()) {
-      case 'diario': fecha.setDate(fecha.getDate() + 1); break;
-      case 'semanal': fecha.setDate(fecha.getDate() + 7); break;
-      case 'mensual': fecha.setMonth(fecha.getMonth() + 1); break;
-      case 'trimestral': fecha.setMonth(fecha.getMonth() + 3); break;
-      case 'anual': fecha.setFullYear(fecha.getFullYear() + 1); break;
+      case 'diario': fecha.add(1, 'days'); break;
+      case 'semanal': fecha.add(7, 'days'); break;
+      case 'mensual': fecha.add(1, 'months'); break;
+      case 'trimestral': fecha.add(3, 'months'); break;
+      case 'anual': fecha.add(1, 'years'); break;
       default: return 'Frecuencia desconocida';
     }
-    return fecha.toLocaleDateString();
+    return fecha.format('DD/MM/YYYY');
   };
 
-  const obtenerColorBadge = (estado, frecuencia) => {
-    if (estado === 'pendiente') return 'warning';
-    if (estado === 'asignado') return 'primary';
-    if (estado === 'resuelto' || estado === 'completado') return 'success';
-    return frecuenciaColores[frecuencia] || 'secondary';
+  const obtenerColorBadge = (estado) => {
+    switch (estado) {
+      case 'pendiente': return 'warning';
+      case 'asignado': return 'info';
+      case 'en_proceso': return 'primary';
+      case 'resuelto':
+      case 'completado': return 'success';
+      default: return 'secondary';
+    }
   };
 
   useEffect(() => {
     const obtenerDatos = async () => {
       try {
         const token = localStorage.getItem('token');
-        if (!token) throw new Error('Token no encontrado');
+        if (!token) {
+          navigate('/login');
+          return;
+        }
 
-        const [resReportes, resMantenimientos] = await Promise.all([
-          axios.get('http://localhost:5000/reportes', { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get('http://localhost:5000/mantenimientos', { headers: { Authorization: `Bearer ${token}` } })
+        const [resReportes, resMantenimientos, resUbicaciones] = await Promise.all([
+          axios.get(`${API_BASE_URL}/reportes`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${API_BASE_URL}/mantenimientos`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${API_BASE_URL}/ubicaciones`, { headers: { Authorization: `Bearer ${token}` } })
         ]);
+
+        const ubicacionesMap = (resUbicaciones.data || []).reduce((acc, u) => {
+          acc[u.id] = u.nombre;
+          return acc;
+        }, {});
+        setUbicaciones(resUbicaciones.data || []);
 
         const incidentes = (resReportes.data.incidentes || [])
           .filter(r => !['pendiente_verificacion', 'rechazado'].includes(r.estado))
@@ -103,7 +107,7 @@ export default function CalendarioReportes({ auth }) {
             operario_nombre: reporte.operario_nombre || 'No asignado',
             supervisor_nombre: reporte.supervisor_nombre || 'No asignado',
             acciones_tomadas: reporte.acciones_tomadas || 'No registradas',
-            ubicacion_nombre: reporte.ubicacion || reporte.ubicacion_actual || 'No registrada', // <-- seguro
+            ubicacion_nombre: reporte.ubicacion_id ? ubicacionesMap[reporte.ubicacion_id] : 'No registrada',
             allDay: true
           }));
 
@@ -129,6 +133,7 @@ export default function CalendarioReportes({ auth }) {
             categoria: 'mantenimiento',
             fecha_programada: m.fecha_programada,
             fecha_ultima_ejecucion: m.fecha_ultima_ejecucion,
+            ubicacion_nombre: m.ubicacion_id ? ubicacionesMap[m.ubicacion_id] : 'No registrada',
             allDay: true
           };
         });
@@ -137,12 +142,14 @@ export default function CalendarioReportes({ auth }) {
         setErrorCarga(null);
       } catch (error) {
         console.error('Error al cargar datos:', error);
-        setErrorCarga(error.message || 'Error al cargar datos. Por favor intenta de nuevo.');
+        setErrorCarga(error.message || 'Error al cargar datos.');
+      } finally {
+        setLoading(false);
       }
     };
 
     obtenerDatos();
-  }, []);
+  }, [navigate]);
 
   const conteoPorEstado = useMemo(() => {
     const start = moment(fechaVista).startOf(vista.toLowerCase());
@@ -163,18 +170,27 @@ export default function CalendarioReportes({ auth }) {
 
   const eventStyleGetter = (event) => {
     let backgroundColor = '';
-    if (event.categoria === 'incidente') backgroundColor = estadoColores[event.estado] || tipoEventoColores.incidente;
-    else if (event.categoria === 'mantenimiento') backgroundColor = event.estado === 'pendiente' ? estadoColores.pendiente : estadoColores.completado;
-
+    let textColor = '';
+    if (event.categoria === 'incidente') {
+      backgroundColor = estadoColores[event.estado] || '#00482B';
+      textColor = event.estado === 'pendiente' ? '#00482B' : 'white';
+    } else if (event.categoria === 'mantenimiento') {
+      backgroundColor = estadoColores.completado;
+      textColor = 'white';
+      if (event.estado === 'pendiente') {
+        backgroundColor = estadoColores.pendiente;
+        textColor = '#00482B';
+      }
+    }
     return {
       style: {
         backgroundColor,
         borderRadius: '8px',
         padding: '4px 8px',
-        color: 'white',
+        color: textColor,
         fontWeight: 'bold',
-        border: '1px solid #fff',
-        boxShadow: '0 0 6px rgba(0,0,0,0.3)',
+        border: `1px solid ${textColor}`,
+        boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
         cursor: 'pointer',
         fontSize: '12px'
       }
@@ -190,7 +206,7 @@ export default function CalendarioReportes({ auth }) {
     <OverlayTrigger
       placement="top"
       overlay={
-        <Tooltip id={`tooltip-${event.id}`}>
+        <Tooltip id={`tooltip-${event.id}`} style={{ zIndex: 9999 }}>
           <div>
             <strong>{event.title}</strong><br />
             <span>📌 {event.categoria}</span><br />
@@ -203,17 +219,13 @@ export default function CalendarioReportes({ auth }) {
         </Tooltip>
       }
     >
-      <div style={{ borderRadius: '6px', padding: '4px', color: 'white', textAlign: 'center', fontSize: '12px' }}>
+      <div style={{ borderRadius: '6px', padding: '4px', textAlign: 'center', fontSize: '12px' }}>
         {event.title}
       </div>
     </OverlayTrigger>
   );
 
-  const handleViewChange = (nuevaVista) => {
-    if (nuevaVista === 'agenda') navigate('/mis-tareas');
-    else setVista(nuevaVista);
-  };
-
+  const handleViewChange = (nuevaVista) => setVista(nuevaVista);
   const handleNavigate = (fecha) => setFechaVista(fecha);
 
   const CustomToolbar = (toolbar) => {
@@ -223,14 +235,14 @@ export default function CalendarioReportes({ auth }) {
 
     return (
       <div className="d-flex justify-content-between mb-3 align-items-center">
-        <div>
-          <button className="btn btn-outline-primary me-2" onClick={goToBack}>Ant</button>
-          <button className="btn btn-outline-primary me-2" onClick={goToToday}>Hoy</button>
-          <button className="btn btn-outline-primary" onClick={goToNext}>Sig</button>
+        <div className="btn-group">
+          <Button variant="outline-primary" onClick={goToBack}>Ant</Button>
+          <Button variant="outline-primary" onClick={goToToday}>Hoy</Button>
+          <Button variant="outline-primary" onClick={goToNext}>Sig</Button>
         </div>
-        <h4 className="m-0 text-uppercase">{toolbar.label}</h4>
+        <h4 className="m-0 text-uppercase" style={{ color: '#00482B', fontWeight: 'bold' }}>{toolbar.label}</h4>
         <div>
-          <select className="form-select" value={vista} onChange={(e) => handleViewChange(e.target.value)}>
+          <select className="form-select" value={vista} onChange={(e) => handleViewChange(e.target.value)} style={{ borderColor: '#00482B', color: '#00482B' }}>
             <option value={Views.MONTH}>Mes</option>
             <option value={Views.WEEK}>Semana</option>
             <option value={Views.DAY}>Día</option>
@@ -249,57 +261,61 @@ export default function CalendarioReportes({ auth }) {
   };
 
   return (
-    <div className="container mt-4">
-      <div className="card shadow p-4 rounded bg-light border-0">
-        <h2 className="text-center mb-4 text-primary fw-bold">📅 Calendario de Incidentes y Mantenimientos</h2>
-        {errorCarga && <div className="alert alert-danger text-center">{errorCarga}</div>}
+    <Container fluid className="p-4" style={{ backgroundImage: `url(${facatativa2})`, backgroundSize: 'cover', backgroundAttachment: 'fixed' }}>
+      <Card className="shadow-lg p-4 border-0 rounded-4" style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}>
+        <h2 className="text-center mb-4 fw-bold" style={{ color: '#00482B' }}>📅 Calendario de Incidentes y Mantenimientos</h2>
 
-        {/* Leyenda */}
-        <h5 className="mt-4">🛑 Incidentes</h5>
-        <div className="d-flex flex-wrap gap-3 mb-4">
-          {Object.entries(estadoColores).filter(([estado]) => estado !== 'completado').map(([estado, color]) => (
-            <div key={estado} className="d-flex align-items-center gap-2">
-              <div style={{ width: '25px', height: '25px', backgroundColor: color, borderRadius: '5px' }} />
-              <span className="fw-semibold text-capitalize">{estado.replace('_', ' ')} ({conteoPorEstado.incidentes[estado] || 0})</span>
+        {loading && <div className="text-center my-5"><Spinner animation="border" variant="success" /></div>}
+        {errorCarga && <Alert variant="danger" className="text-center">{errorCarga}</Alert>}
+
+        {!loading && (
+          <>
+            <h5 className="mt-4">🛑 Incidentes</h5>
+            <div className="d-flex flex-wrap gap-3 mb-4">
+              {Object.entries(estadoColores).filter(([estado]) => estado !== 'completado').map(([estado, color]) => (
+                <div key={estado} className="d-flex align-items-center gap-2">
+                  <div style={{ width: '25px', height: '25px', backgroundColor: color, borderRadius: '5px' }} />
+                  <span className="fw-semibold text-capitalize">{estado.replace('_', ' ')} ({conteoPorEstado.incidentes[estado] || 0})</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <h5>🛠 Mantenimientos</h5>
-        <div className="d-flex flex-wrap gap-3 mb-4">
-          <div className="d-flex align-items-center gap-2">
-            <div style={{ width: '25px', height: '25px', backgroundColor: estadoColores.pendiente, borderRadius: '5px' }} />
-            <span className="fw-semibold">Pendiente ({conteoPorEstado.mantenimientos.pendiente || 0})</span>
-          </div>
-          <div className="d-flex align-items-center gap-2">
-            <div style={{ width: '25px', height: '25px', backgroundColor: estadoColores.completado, borderRadius: '5px' }} />
-            <span className="fw-semibold">Completado ({conteoPorEstado.mantenimientos.completado || 0})</span>
-          </div>
-        </div>
+            <h5>🛠 Mantenimientos</h5>
+            <div className="d-flex flex-wrap gap-3 mb-4">
+              <div className="d-flex align-items-center gap-2">
+                <div style={{ width: '25px', height: '25px', backgroundColor: estadoColores.pendiente, borderRadius: '5px' }} />
+                <span className="fw-semibold">Pendiente ({conteoPorEstado.mantenimientos.pendiente || 0})</span>
+              </div>
+              <div className="d-flex align-items-center gap-2">
+                <div style={{ width: '25px', height: '25px', backgroundColor: estadoColores.completado, borderRadius: '5px' }} />
+                <span className="fw-semibold">Completado ({conteoPorEstado.mantenimientos.completado || 0})</span>
+              </div>
+            </div>
 
-        <Calendar
-          localizer={localizer}
-          events={eventos}
-          startAccessor="start"
-          endAccessor="end"
-          style={{ height: 650, backgroundColor: 'white', borderRadius: '12px', padding: '10px' }}
-          eventPropGetter={eventStyleGetter}
-          onSelectEvent={onSelectEvent}
-          components={{ event: CustomEvent, toolbar: CustomToolbar }}
-          onView={handleViewChange}
-          view={vista}
-          views={['month', 'week', 'day']}
-          selectable
-          onNavigate={handleNavigate}
-          date={fechaVista}
-          messages={{ month: 'Mes', week: 'Semana', day: 'Día' }}
-          formats={formats}
-          step={60}
-          timeslots={1}
-          className={vista !== Views.MONTH ? 'no-time-scroll' : ''}
-        />
+            <Calendar
+              localizer={localizer}
+              events={eventos}
+              startAccessor="start"
+              endAccessor="end"
+              style={{ height: 650, backgroundColor: 'white', borderRadius: '12px', padding: '10px' }}
+              eventPropGetter={eventStyleGetter}
+              onSelectEvent={onSelectEvent}
+              components={{ event: CustomEvent, toolbar: CustomToolbar }}
+              onView={handleViewChange}
+              view={vista}
+              views={['month', 'week', 'day']}
+              selectable
+              onNavigate={handleNavigate}
+              date={fechaVista}
+              messages={{ month: 'Mes', week: 'Semana', day: 'Día' }}
+              formats={formats}
+              step={60}
+              timeslots={1}
+              className={vista !== Views.MONTH ? 'no-time-scroll' : ''}
+            />
+          </>
+        )}
 
-        {/* Modal de detalles */}
         <Modal show={showModalView} onHide={() => setShowModalView(false)} size="lg" centered>
           <Modal.Header closeButton>
             <Modal.Title>
@@ -331,12 +347,13 @@ export default function CalendarioReportes({ auth }) {
                   <p><strong>Fecha programada:</strong> {formatDate(viewData.fecha_programada)}</p>
                   <p><strong>Última ejecución:</strong> {formatDate(viewData.fecha_ultima_ejecucion)}</p>
                   <p><strong>Próxima ejecución:</strong> {calcularProximaFecha(viewData.fecha_ultima_ejecucion, viewData.frecuencia)}</p>
-                  <p><strong>Estado:</strong> <Badge bg={obtenerColorBadge(viewData.estado, viewData.frecuencia)}>{viewData.estado}</Badge></p>
-                  <p><strong>Frecuencia:</strong> <Badge bg={obtenerColorBadge(viewData.estado, viewData.frecuencia)}>{viewData.frecuencia}</Badge></p>
+                  <p><strong>Estado:</strong> <Badge bg={obtenerColorBadge(viewData.estado)}>{viewData.estado}</Badge></p>
+                  <p><strong>Frecuencia:</strong> <Badge bg={obtenerColorBadge(viewData.estado)}>{viewData.frecuencia}</Badge></p>
                   <p><strong>Comentarios:</strong> {viewData.comentarios || 'Ninguno'}</p>
                   <p><strong>Componente:</strong> {viewData.componente}</p>
                   <p><strong>Días:</strong> {viewData.dias}</p>
                   <p><strong>Responsable:</strong> {viewData.responsable_nombre} {viewData.responsable_apellido} ({viewData.especialidad})</p>
+                  <p><strong>Ubicación:</strong> {viewData.ubicacion_nombre || 'No registrada'}</p>
                 </>
               )}
             </Modal.Body>
@@ -345,17 +362,7 @@ export default function CalendarioReportes({ auth }) {
             <Button variant="secondary" onClick={() => setShowModalView(false)}>Cerrar</Button>
           </Modal.Footer>
         </Modal>
-      </div>
-
-      <style>{`
-        .no-time-scroll .rbc-time-content,
-        .no-time-scroll .rbc-time-gutter {
-          display: none;
-        }
-        .no-time-scroll .rbc-day-slot .rbc-events-container {
-          margin-top: 0 !important;
-        }
-      `}</style>
-    </div>
+      </Card>
+    </Container>
   );
 }

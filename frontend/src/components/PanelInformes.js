@@ -9,27 +9,48 @@ import {
   Tab,
   Container,
   Alert,
+  Form,
+  Card,
+  Row,
+  Col,
 } from "react-bootstrap";
+import facatativa2 from "../assets/facatativa-2.jpg";
 
-const API_URL = "http://localhost:5000/informes";
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL || "http://192.168.56.1:5000";
+const API_URL = `${API_BASE_URL}/informes`;
 
-// Componente reutilizable para tablas
 const TablaAuditoria = ({ headers, rows, renderRow }) => {
   if (!rows || rows.length === 0) {
-    return <Alert variant="warning">No hay datos disponibles.</Alert>;
+    return (
+      <Alert variant="warning" className="mt-3 text-center fw-semibold">
+        No hay datos disponibles.
+      </Alert>
+    );
   }
 
   return (
-    <Table striped bordered hover responsive>
-      <thead>
-        <tr>
-          {headers.map((h, idx) => (
-            <th key={idx}>{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>{rows.map(renderRow)}</tbody>
-    </Table>
+    <div
+      className="table-container shadow-sm bg-white rounded-4"
+      style={{
+        maxHeight: "400px",
+        overflowY: "auto",
+        border: "1px solid #dee2e6",
+      }}
+    >
+      <Table striped bordered hover responsive className="mb-0">
+        <thead className="table-light sticky-top" style={{ top: 0, zIndex: 2 }}>
+          <tr>
+            {headers.map((h, idx) => (
+              <th key={idx} className="text-center align-middle">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>{rows.map(renderRow)}</tbody>
+      </Table>
+    </div>
   );
 };
 
@@ -45,6 +66,15 @@ const PanelInformes = () => {
   const [error, setError] = useState(null);
   const [selectedTab, setSelectedTab] = useState("inventario");
   const [showDownload, setShowDownload] = useState(false);
+  const [modulosSeleccionados, setModulosSeleccionados] = useState({
+    inventario: true,
+    mantenimientos: true,
+    incidentes: true,
+    usuarios: true,
+  });
+
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
 
   useEffect(() => {
     cargarDatos();
@@ -63,10 +93,23 @@ const PanelInformes = () => {
     }
   };
 
+  const handleCheckboxChange = (e) => {
+    const { name, checked } = e.target;
+    setModulosSeleccionados((prev) => ({ ...prev, [name]: checked }));
+  };
+
   const descargarPDF = async () => {
     try {
       setDownloading(true);
-      window.open(`${API_URL}/pdf?modulo=${selectedTab}`, "_blank");
+      const modulos = Object.keys(modulosSeleccionados).filter(
+        (m) => modulosSeleccionados[m]
+      );
+      const query =
+        modulos.map((m) => `modulos=${m}`).join("&") +
+        (fechaInicio ? `&fechaInicio=${fechaInicio}` : "") +
+        (fechaFin ? `&fechaFin=${fechaFin}` : "");
+
+      window.open(`${API_URL}/pdf?${query}`, "_blank");
       setDownloading(false);
     } catch (err) {
       setError("Error al generar el PDF.");
@@ -76,13 +119,14 @@ const PanelInformes = () => {
 
   const handleSelect = (key) => {
     setSelectedTab(key);
-    setShowDownload(false); // reset al cambiar de pestaña
+    setShowDownload(false);
   };
 
   if (loading) {
     return (
       <Container className="text-center mt-5">
-        <Spinner animation="border" /> <p>Cargando auditoría...</p>
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-2">Cargando auditoría...</p>
       </Container>
     );
   }
@@ -90,7 +134,9 @@ const PanelInformes = () => {
   if (error) {
     return (
       <Container className="mt-5">
-        <Alert variant="danger">{error}</Alert>
+        <Alert variant="danger" className="shadow-sm rounded-3">
+          {error}
+        </Alert>
         <Button onClick={cargarDatos} variant="primary">
           Reintentar
         </Button>
@@ -99,110 +145,207 @@ const PanelInformes = () => {
   }
 
   return (
-    <Container>
-      <h2 className="my-3">Panel de Informes</h2>
+    <div
+      style={{
+        backgroundImage: `url(${facatativa2})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        minHeight: "calc(100vh - 60px)",
+        display: "flex",
+        alignItems: "center",
+        position: "relative",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          backgroundColor: "rgba(0, 0, 0, 0.4)",
+          zIndex: 1,
+        }}
+      />
 
-      <Alert variant="info">
-        Selecciona un módulo para ver la vista previa y luego confirma si deseas
-        descargar el informe en PDF.
-      </Alert>
-
-      <Tabs activeKey={selectedTab} onSelect={handleSelect} className="mb-3">
-        {/* Inventario */}
-        <Tab eventKey="inventario" title="Inventario">
-          <TablaAuditoria
-            headers={["Nombre", "Cantidad", "Costo Unitario", "Ubicación"]}
-            rows={data.inventario}
-            renderRow={(item, idx) => (
-              <tr key={idx}>
-                <td>{item.nombre}</td>
-                <td>{item.cantidad}</td>
-                <td>
-                  {new Intl.NumberFormat("es-CO", {
-                    style: "currency",
-                    currency: "COP",
-                  }).format(item.costo_unitario)}
-                </td>
-                <td>{item.ubicacion_actual}</td>
-              </tr>
-            )}
-          />
-        </Tab>
-
-        {/* Mantenimientos */}
-        <Tab eventKey="mantenimientos" title="Mantenimientos">
-          <TablaAuditoria
-            headers={["ID", "Nombre", "Estado", "Fecha Programada", "Responsable"]}
-            rows={data.mantenimientos}
-            renderRow={(m, idx) => (
-              <tr key={idx}>
-                <td>{m.id}</td>
-                <td>{m.nombre}</td>
-                <td>{m.estado}</td>
-                <td>{new Date(m.fecha_programada).toLocaleDateString()}</td>
-                <td>{m.responsable}</td>
-              </tr>
-            )}
-          />
-        </Tab>
-
-        {/* Incidentes */}
-        <Tab eventKey="incidentes" title="Incidentes">
-          <TablaAuditoria
-            headers={["ID", "Descripción", "Estado", "Fecha Creación"]}
-            rows={data.incidentes}
-            renderRow={(i, idx) => (
-              <tr key={idx}>
-                <td>{i.id}</td>
-                <td>{i.descripcion}</td>
-                <td>{i.estado}</td>
-                <td>{new Date(i.fecha_creacion).toLocaleString()}</td>
-              </tr>
-            )}
-          />
-        </Tab>
-
-        {/* Usuarios */}
-        <Tab eventKey="usuarios" title="Usuarios y Roles">
-          <TablaAuditoria
-            headers={["ID", "Nombre", "Rol"]}
-            rows={data.usuarios}
-            renderRow={(u, idx) => (
-              <tr key={idx}>
-                <td>{u.id}</td>
-                <td>{u.nombre}</td>
-                <td>{u.rol}</td>
-              </tr>
-            )}
-          />
-        </Tab>
-      </Tabs>
-
-      <div className="mt-3">
-        {!showDownload ? (
-          <Button
-            variant="secondary"
-            onClick={() => setShowDownload(true)}
+      <Container className="my-5" style={{ zIndex: 2 }}>
+        <Card
+          className="shadow border-0"
+          style={{
+            borderRadius: "15px",
+            backgroundColor: "rgba(255, 255, 255, 0.9)",
+          }}
+        >
+          <Card.Header
+            className="text-center py-4"
+            style={{
+              backgroundColor: "#00482B",
+              borderTopLeftRadius: "15px",
+              borderTopRightRadius: "15px",
+            }}
           >
-            Confirmar Vista Previa
-          </Button>
-        ) : (
-          <Button
-            variant="success"
-            onClick={descargarPDF}
-            disabled={downloading}
-          >
-            {downloading ? (
-              <Spinner as="span" animation="border" size="sm" />
-            ) : (
-              `Descargar Informe de ${
-                selectedTab.charAt(0).toUpperCase() + selectedTab.slice(1)
-              }`
-            )}
-          </Button>
-        )}
-      </div>
-    </Container>
+            <h2 className="mb-0" style={{ color: "#FBE122", fontWeight: "bold" }}>
+              📈 Panel de Informes
+            </h2>
+          </Card.Header>
+
+          <Card.Body className="p-4">
+            <Alert
+              variant="info"
+              className="shadow-sm rounded-3 text-center small py-2"
+            >
+              Selecciona los módulos y rango de fechas para generar el informe PDF.
+            </Alert>
+
+            <Form className="mb-4">
+              <Form.Label className="fw-semibold">Módulos a incluir:</Form.Label>
+              <div className="d-flex flex-wrap gap-4 mb-3">
+                {Object.keys(modulosSeleccionados).map((modulo) => (
+                  <Form.Check
+                    key={modulo}
+                    type="switch"
+                    id={`switch-${modulo}`}
+                    label={modulo.charAt(0).toUpperCase() + modulo.slice(1)}
+                    name={modulo}
+                    checked={modulosSeleccionados[modulo]}
+                    onChange={handleCheckboxChange}
+                  />
+                ))}
+              </div>
+
+              <Row className="g-3">
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label>Fecha Inicio</Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={fechaInicio}
+                      onChange={(e) => setFechaInicio(e.target.value)}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label>Fecha Fin</Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={fechaFin}
+                      onChange={(e) => setFechaFin(e.target.value)}
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+            </Form>
+
+            <Tabs activeKey={selectedTab} onSelect={handleSelect} className="mb-4 shadow-sm" fill>
+              {/* Inventario */}
+              <Tab eventKey="inventario" title="Inventario">
+                <TablaAuditoria
+                  headers={["Nombre", "Cantidad", "Costo Unitario", "Ubicación"]}
+                  rows={data.inventario}
+                  renderRow={(item, idx) => (
+                    <tr key={idx}>
+                      <td>{item.nombre}</td>
+                      <td className="text-center">{item.cantidad}</td>
+                      <td className="text-end">
+                        {new Intl.NumberFormat("es-CO", {
+                          style: "currency",
+                          currency: "COP",
+                        }).format(item.costo_unitario)}
+                      </td>
+                      <td>{item.ubicacion_actual}</td>
+                    </tr>
+                  )}
+                />
+              </Tab>
+
+              {/* Mantenimientos */}
+              <Tab eventKey="mantenimientos" title="Mantenimientos">
+                <TablaAuditoria
+                  headers={["ID", "Nombre", "Estado", "Fecha Programada", "Responsable"]}
+                  rows={data.mantenimientos.filter((m) => {
+                    if (fechaInicio && new Date(m.fecha_programada) < new Date(fechaInicio)) return false;
+                    if (fechaFin && new Date(m.fecha_programada) > new Date(fechaFin)) return false;
+                    return true;
+                  })}
+                  renderRow={(m, idx) => (
+                    <tr key={idx}>
+                      <td>{m.id}</td>
+                      <td>{m.nombre}</td>
+                      <td>{m.estado}</td>
+                      <td>{new Date(m.fecha_programada).toLocaleDateString()}</td>
+                      <td>{m.responsable}</td>
+                    </tr>
+                  )}
+                />
+              </Tab>
+
+              {/* Incidentes */}
+              <Tab eventKey="incidentes" title="Incidentes">
+                <TablaAuditoria
+                  headers={["ID", "Descripción", "Estado", "Fecha Creación"]}
+                  rows={data.incidentes.filter((i) => {
+                    if (fechaInicio && new Date(i.fecha_creacion) < new Date(fechaInicio)) return false;
+                    if (fechaFin && new Date(i.fecha_creacion) > new Date(fechaFin)) return false;
+                    return true;
+                  })}
+                  renderRow={(i, idx) => (
+                    <tr key={idx}>
+                      <td>{i.id}</td>
+                      <td>{i.descripcion}</td>
+                      <td>{i.estado}</td>
+                      <td>{new Date(i.fecha_creacion).toLocaleString()}</td>
+                    </tr>
+                  )}
+                />
+              </Tab>
+
+              {/* Usuarios */}
+              <Tab eventKey="usuarios" title="Usuarios y Roles">
+                <TablaAuditoria
+                  headers={["ID", "Nombre", "Rol"]}
+                  rows={data.usuarios}
+                  renderRow={(u, idx) => (
+                    <tr key={idx}>
+                      <td>{u.id}</td>
+                      <td>{u.nombre}</td>
+                      <td>{u.rol}</td>
+                    </tr>
+                  )}
+                />
+              </Tab>
+            </Tabs>
+
+            <div className="text-center mt-4">
+              {!showDownload ? (
+                <Button
+                  variant="outline-primary"
+                  className="px-4 rounded-pill shadow-sm"
+                  onClick={() => setShowDownload(true)}
+                >
+                  👁️ Vista Previa
+                </Button>
+              ) : (
+                <Button
+                  variant="success"
+                  className="px-4 rounded-pill shadow-sm"
+                  onClick={descargarPDF}
+                  disabled={downloading}
+                >
+                  {downloading ? (
+                    <>
+                      <Spinner as="span" animation="border" size="sm" /> Generando...
+                    </>
+                  ) : (
+                    "📥 Descargar Informe PDF"
+                  )}
+                </Button>
+              )}
+            </div>
+          </Card.Body>
+        </Card>
+      </Container>
+    </div>
   );
 };
 

@@ -9,9 +9,15 @@ import {
   Form,
   Spinner,
   Badge,
-  Alert
+  Alert,
+  Row,
+  Col
 } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
+import facatativa2 from '../assets/facatativa-2.jpg';
+import escudoColor from '../assets/ESCUDO COLOR.png';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://192.168.56.1:5000";
 
 const AdminTareas = ({ auth }) => {
   const [incidentes, setIncidentes] = useState([]);
@@ -34,7 +40,8 @@ const AdminTareas = ({ auth }) => {
     } else {
       navigate('/');
     }
-  }, [auth, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth]);
 
   const fetchData = async () => {
     try {
@@ -43,13 +50,13 @@ const AdminTareas = ({ auth }) => {
       const token = localStorage.getItem('token');
 
       const [incidentesRes, responsablesRes, ubicacionesRes] = await Promise.all([
-        axios.get('http://localhost:5000/reportes?estado=pendiente', {
+        axios.get(`${API_BASE_URL}/reportes?estado=pendiente`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get('http://localhost:5000/asignaciones/responsables', {
+        axios.get(`${API_BASE_URL}/asignaciones/responsables`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get('http://localhost:5000/ubicaciones', {
+        axios.get(`${API_BASE_URL}/ubicaciones`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
@@ -95,9 +102,7 @@ const AdminTareas = ({ auth }) => {
         fecha_finalizacion
       };
 
-      console.log("📤 Enviando asignación al backend:", payload);
-
-      await axios.post('http://localhost:5000/asignaciones', payload, {
+      await axios.post(`${API_BASE_URL}/asignaciones`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -106,6 +111,23 @@ const AdminTareas = ({ auth }) => {
     } catch (err) {
       console.error('Error al asignar:', err.response?.data || err.message);
       setError(err.response?.data?.error || 'Error al asignar tarea.');
+    }
+  };
+
+  const handleEliminar = async (incidente) => {
+    if (!window.confirm(`¿Está seguro de eliminar el incidente #${incidente.id}?`)) return;
+
+    try {
+      const token = localStorage.getItem('token');
+
+      await axios.put(`${API_BASE_URL}/incidentes/${incidente.id}/eliminar`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      fetchData();
+    } catch (err) {
+      console.error('Error al eliminar:', err.response?.data || err.message);
+      setError(err.response?.data?.error || 'Error al eliminar incidente.');
     }
   };
 
@@ -136,143 +158,190 @@ const AdminTareas = ({ auth }) => {
     }
   };
 
+  const getBadgeGravedad = (gravedad) => {
+    switch (gravedad) {
+      case 'alta': return 'danger';
+      case 'media': return 'warning';
+      case 'baja': return 'success';
+      case 'critica': return 'dark';
+      default: return 'light';
+    }
+  };
+
   return (
-    <Container className="mt-4">
-      <Card className="shadow">
-        <Card.Header className="bg-primary text-white">
-          <h2>Panel de Asignación de Incidentes</h2>
-        </Card.Header>
-        <Card.Body>
-          {error && <Alert variant="danger">{error}</Alert>}
+    <div
+      style={{
+        backgroundImage: `url(${facatativa2})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        position: "relative",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          backgroundColor: "rgba(0, 0, 0, 0.4)",
+          zIndex: 1,
+        }}
+      ></div>
+      <Container className="my-5" style={{ zIndex: 2 }}>
+        <Card className="shadow-lg border-0" style={{ borderRadius: "15px", backgroundColor: "rgba(255, 255, 255, 0.9)" }}>
+          <Card.Header className="text-white py-3" style={{ backgroundColor: "#00482B", borderTopLeftRadius: "15px", borderTopRightRadius: "15px" }}>
+            <Row className="align-items-center">
+              <Col xs="auto" className="d-flex align-items-center">
+                <img src={escudoColor} alt="Escudo" style={{ height: "35px", marginRight: "10px" }} />
+                <h2 className="mb-0" style={{ color: "#FBE122", fontWeight: "bold" }}>
+                  Panel de Asignación de Incidentes
+                </h2>
+              </Col>
+            </Row>
+          </Card.Header>
+          <Card.Body>
+            {error && <Alert variant="danger">{error}</Alert>}
 
-          {loading ? (
-            <div className="text-center my-5">
-              <Spinner animation="border" variant="primary" />
-              <p className="mt-2">Cargando datos...</p>
-            </div>
-          ) : (
-            <>
-              <h4 className="mb-4">Incidentes Pendientes de Asignación</h4>
-              {incidentes.length > 0 ? (
-                <Table striped bordered hover responsive>
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Título</th>
-                      <th>Tipo</th>
-                      <th>Ubicación</th>
-                      <th>Gravedad</th>
-                      <th>Estado</th>
-                      <th>Fecha creación</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {incidentes.map((incidente) => (
-                      <tr key={incidente.id}>
-                        <td>{incidente.id}</td>
-                        <td>{incidente.titulo}</td>
-                        <td>{incidente.tipo}</td>
-                        <td>{getUbicacionNombre(incidente.ubicacion_id)}</td>
-                        <td>
-                          <Badge bg={
-                            incidente.gravedad === 'alta' ? 'danger' :
-                            incidente.gravedad === 'media' ? 'warning' : 'success'
-                          }>
-                            {incidente.gravedad}
-                          </Badge>
-                        </td>
-                        <td>
-                          <Badge bg={getBadgeEstado(incidente.estado)}>
-                            {incidente.estado}
-                          </Badge>
-                        </td>
-                        <td>{formatDate(incidente.fecha_creacion)}</td>
-                        <td>
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            disabled={incidente.estado !== 'pendiente'}
-                            onClick={() => handleAsignarClick(incidente)}
-                          >
-                            {incidente.estado === 'resuelto'
-                              ? 'Resuelto'
-                              : incidente.estado === 'asignado'
-                                ? 'Asignado'
-                                : 'Asignar'}
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              ) : (
-                <Alert variant="info">No hay incidentes pendientes de asignación.</Alert>
-              )}
-            </>
-          )}
-        </Card.Body>
-      </Card>
-
-      {/* Modal Asignar Responsable */}
-      <Modal show={showAsignar} onHide={closeModal}>
-        <Modal.Header closeButton>
-          <Modal.Title>Asignar Responsable</Modal.Title>
-        </Modal.Header>
-        <Form onSubmit={handleAsignarSubmit}>
-          <Modal.Body>
-            {selectedIncidente && (
+            {loading ? (
+              <div className="text-center my-5">
+                <Spinner animation="border" style={{ color: "#00482B" }} />
+                <p className="mt-2">Cargando datos...</p>
+              </div>
+            ) : (
               <>
-                <h5>Incidente #{selectedIncidente.id}</h5>
-                <p><strong>Título:</strong> {selectedIncidente.titulo}</p>
-                <p><strong>Descripción:</strong> {selectedIncidente.descripcion}</p>
-                <p><strong>Ubicación:</strong> {getUbicacionNombre(selectedIncidente.ubicacion_id)}</p>
+                <h4 className="mb-4" style={{ color: "#00482B" }}>Incidentes Pendientes de Asignación</h4>
+                {incidentes.length > 0 ? (
+                  <Table striped bordered hover responsive>
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Título</th>
+                        <th>Tipo</th>
+                        <th>Ubicación</th>
+                        <th>Gravedad</th>
+                        <th>Estado</th>
+                        <th>Fecha creación</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {incidentes.map((incidente) => (
+                        <tr key={incidente.id}>
+                          <td>{incidente.id}</td>
+                          <td>{incidente.titulo}</td>
+                          <td>{incidente.tipo}</td>
+                          <td>{getUbicacionNombre(incidente.ubicacion_id)}</td>
+                          <td>
+                            <Badge bg={getBadgeGravedad(incidente.gravedad)}>
+                              {incidente.gravedad}
+                            </Badge>
+                          </td>
+                          <td>
+                            <Badge bg={getBadgeEstado(incidente.estado)}>
+                              {incidente.estado}
+                            </Badge>
+                          </td>
+                          <td>{formatDate(incidente.fecha_creacion)}</td>
+                          <td>
+                            <Button
+                              style={{ backgroundColor: "#FBE122", borderColor: "#FBE122", color: "#00482B", fontWeight: "bold" }}
+                              size="sm"
+                              disabled={incidente.estado !== 'pendiente'}
+                              onClick={() => handleAsignarClick(incidente)}
+                              className="me-2"
+                            >
+                              Asignar
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              disabled={incidente.estado === 'eliminado'}
+                              onClick={() => handleEliminar(incidente)}
+                            >
+                              Eliminar
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                ) : (
+                  <Alert variant="info">No hay incidentes pendientes de asignación.</Alert>
+                )}
               </>
             )}
+          </Card.Body>
+        </Card>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Responsable *</Form.Label>
-              <Form.Select
-                value={formData.responsable_id}
-                onChange={(e) => setFormData({ ...formData, responsable_id: e.target.value })}
-                required
+        {/* Modal Asignar Responsable */}
+        <Modal show={showAsignar} onHide={closeModal}>
+          <Modal.Header closeButton style={{ backgroundColor: "#00482B" }}>
+            <Modal.Title style={{ color: "#FBE122" }}>Asignar Responsable</Modal.Title>
+          </Modal.Header>
+          <Form onSubmit={handleAsignarSubmit}>
+            <Modal.Body>
+              {selectedIncidente && (
+                <>
+                  <h5>Incidente #{selectedIncidente.id}</h5>
+                  <p><strong>Título:</strong> {selectedIncidente.titulo}</p>
+                  <p><strong>Descripción:</strong> {selectedIncidente.descripcion}</p>
+                  <p><strong>Ubicación:</strong> {getUbicacionNombre(selectedIncidente.ubicacion_id)}</p>
+                </>
+              )}
+
+              <Form.Group className="mb-3">
+                <Form.Label>Responsable *</Form.Label>
+                <Form.Select
+                  value={formData.responsable_id}
+                  onChange={(e) => setFormData({ ...formData, responsable_id: e.target.value })}
+                  required
+                >
+                  <option value="">Seleccione un responsable</option>
+                  {responsables.map((res) => (
+                    <option key={res.id} value={res.id}>
+                      {res.nombre} ({res.especialidad})
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Comentarios/Instrucciones</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  value={formData.comentarios}
+                  onChange={(e) => setFormData({ ...formData, comentarios: e.target.value })}
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Fecha estimada de finalización *</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={formData.fecha_finalizacion}
+                  onChange={(e) => setFormData({ ...formData, fecha_finalizacion: e.target.value })}
+                  required
+                />
+              </Form.Group>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={closeModal}>Cancelar</Button>
+              <Button
+                style={{ backgroundColor: "#FBE122", borderColor: "#FBE122", color: "#00482B", fontWeight: "bold" }}
+                type="submit"
               >
-                <option value="">Seleccione un responsable</option>
-                {responsables.map((res) => (
-                  <option key={res.id} value={res.id}>
-                    {res.nombre} ({res.especialidad})
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Comentarios/Instrucciones</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                value={formData.comentarios}
-                onChange={(e) => setFormData({ ...formData, comentarios: e.target.value })}
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Fecha estimada de finalización *</Form.Label>
-              <Form.Control
-                type="date"
-                value={formData.fecha_finalizacion}
-                onChange={(e) => setFormData({ ...formData, fecha_finalizacion: e.target.value })}
-                required
-              />
-            </Form.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={closeModal}>Cancelar</Button>
-            <Button variant="primary" type="submit">Asignar Tarea</Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
-    </Container>
+                Asignar Tarea
+              </Button>
+            </Modal.Footer>
+          </Form>
+        </Modal>
+      </Container>
+    </div>
   );
 };
 

@@ -14,7 +14,10 @@ import {
   Modal,
   Alert,
   Spinner,
+  Badge,
 } from "react-bootstrap";
+import facatativa2 from "../assets/facatativa-2.jpg";
+import escudoColor from "../assets/ESCUDO COLOR.png";
 
 const CrudUsuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
@@ -49,19 +52,16 @@ const CrudUsuarios = () => {
 
   const navigate = useNavigate();
 
-  // --- Cargar usuarios ---
   useEffect(() => {
     fetchUsuarios();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, page]);
 
-  // --- Cargar roles ---
   useEffect(() => {
     fetchRoles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Ocultar alertas después de 5s ---
   useEffect(() => {
     if (!alertState.visible) return;
     const t = setTimeout(() => {
@@ -70,7 +70,6 @@ const CrudUsuarios = () => {
     return () => clearTimeout(t);
   }, [alertState.visible]);
 
-  // --- Helpers ---
   const showAlert = (variant, message, show = true) => {
     setAlertState({ visible: show, variant, message });
   };
@@ -107,7 +106,6 @@ const CrudUsuarios = () => {
     }
   };
 
-  // --- Fetch usuarios ---
   const fetchUsuarios = async () => {
     setIsLoading(true);
     try {
@@ -129,7 +127,6 @@ const CrudUsuarios = () => {
     }
   };
 
-  // --- Fetch roles ---
   const fetchRoles = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -144,7 +141,6 @@ const CrudUsuarios = () => {
     }
   };
 
-  // --- Abrir modal ---
   const handleOpenModal = (user = null) => {
     setFieldErrors({});
     if (user) {
@@ -171,18 +167,15 @@ const CrudUsuarios = () => {
     setShowModal(true);
   };
 
-  // --- Cerrar modal ---
   const handleCloseModal = () => {
     setShowModal(false);
     setFieldErrors({});
   };
 
-  // --- Manejo de formulario ---
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // --- Validación cliente ---
   const clientValidate = () => {
     const errors = {};
     const emailRegex = /^[a-zA-Z0-9._%+-]+@midominio\.com$/;
@@ -201,7 +194,6 @@ const CrudUsuarios = () => {
     return errors;
   };
 
-  // --- Guardar usuario ---
   const handleSave = async () => {
     setFieldErrors({});
     const validation = clientValidate();
@@ -250,7 +242,6 @@ const CrudUsuarios = () => {
     }
   };
 
-  // --- Eliminar usuario ---
   const handleDelete = async (id) => {
     if (!window.confirm("¿Seguro que deseas eliminar este usuario?")) return;
     setDeletingId(id);
@@ -271,197 +262,228 @@ const CrudUsuarios = () => {
   };
 
   return (
-    <Container className="mt-4">
-      <Card>
-        <Card.Header>
-          <Row className="align-items-center">
-            <Col>
-              <h4>Gestión de Usuarios</h4>
-            </Col>
-            <Col md="4">
-              <Form.Control
-                type="text"
-                placeholder="Buscar usuario"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </Col>
-            <Col className="text-end">
-              <Button onClick={() => handleOpenModal()}>Nuevo Usuario</Button>
-            </Col>
-          </Row>
-        </Card.Header>
+    <div
+      style={{
+        backgroundImage: `url(${facatativa2})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        position: "relative",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          backgroundColor: "rgba(0,0,0,0.4)",
+          zIndex: 1,
+        }}
+      ></div>
+      <Container className="my-5" style={{ zIndex: 2 }}>
+        <Card className="shadow-lg border-0" style={{ borderRadius: "15px", backgroundColor: "rgba(255,255,255,0.9)" }}>
+          <Card.Header className="py-3" style={{ backgroundColor: "#00482B", borderTopLeftRadius: "15px", borderTopRightRadius: "15px" }}>
+            <Row className="align-items-center">
+              <Col xs="auto" className="d-flex align-items-center">
+                <img src={escudoColor} alt="Escudo" style={{ height: "35px", marginRight: "10px" }} />
+                <h2 className="mb-0" style={{ color: "#FBE122", fontWeight: "bold" }}>
+                  Gestión de Usuarios
+                </h2>
+              </Col>
+              <Col md="4">
+                <Form.Control
+                  type="text"
+                  placeholder="Buscar usuario"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </Col>
+              <Col className="text-end">
+                <Button style={{ backgroundColor: "#FBE122", borderColor: "#FBE122", color: "#00482B", fontWeight: "bold" }} onClick={() => handleOpenModal()}>
+                  Nuevo Usuario
+                </Button>
+              </Col>
+            </Row>
+          </Card.Header>
 
-        <Card.Body>
-          {alertState.visible && (
-            <Alert
-              variant={alertState.variant}
-              onClose={() => setAlertState((s) => ({ ...s, visible: false }))}
-              dismissible
-            >
-              {alertState.message}
-            </Alert>
-          )}
-
-          {isLoading ? (
-            <div className="text-center my-3">
-              <Spinner animation="border" role="status" />
-            </div>
-          ) : (
-            <>
-              <Table striped bordered hover responsive>
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Nombre</th>
-                    <th>Apellido</th>
-                    <th>Teléfono</th>
-                    <th>Email</th>
-                    <th>Rol</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(usuarios || []).map((u) => (
-                    <tr key={u.id}>
-                      <td>{u.id}</td>
-                      <td>{u.nombre}</td>
-                      <td>{u.apellido}</td>
-                      <td>{u.telefono}</td>
-                      <td>{u.email}</td>
-                      <td>{roles.find((r) => r.id === u.rol_id)?.nombre || "-"}</td>
-                      <td>
-                        <Button
-                          size="sm"
-                          variant="warning"
-                          onClick={() => handleOpenModal(u)}
-                          className="me-2"
-                          disabled={isSaving || deletingId === u.id}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={() => handleDelete(u.id)}
-                          disabled={isSaving || deletingId === u.id}
-                        >
-                          {deletingId === u.id ? (
-                            <>
-                              <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" /> Eliminando...
-                            </>
-                          ) : (
-                            "Eliminar"
-                          )}
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-
-              <Pagination className="justify-content-center">
-                <Pagination.First disabled={page === 1} onClick={() => setPage(1)} />
-                <Pagination.Prev disabled={page === 1} onClick={() => setPage((prev) => Math.max(prev - 1, 1))} />
-                {[...Array(totalPages)].map((_, i) => (
-                  <Pagination.Item key={i} active={page === i + 1} onClick={() => setPage(i + 1)}>
-                    {i + 1}
-                  </Pagination.Item>
-                ))}
-                <Pagination.Next disabled={page === totalPages} onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))} />
-                <Pagination.Last disabled={page === totalPages} onClick={() => setPage(totalPages)} />
-              </Pagination>
-            </>
-          )}
-        </Card.Body>
-      </Card>
-
-      {/* Modal Crear/Editar */}
-      <Modal show={showModal} onHide={handleCloseModal}>
-        <Modal.Header closeButton>
-          <Modal.Title>{editingUser ? "Editar Usuario" : "Nuevo Usuario"}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-2">
-              <Form.Label>Nombre</Form.Label>
-              <Form.Control name="nombre" value={formData.nombre} onChange={handleChange} />
-              {fieldErrors.nombre && <Form.Text className="text-danger">{fieldErrors.nombre}</Form.Text>}
-            </Form.Group>
-
-            <Form.Group className="mb-2">
-              <Form.Label>Apellido</Form.Label>
-              <Form.Control name="apellido" value={formData.apellido} onChange={handleChange} />
-              {fieldErrors.apellido && <Form.Text className="text-danger">{fieldErrors.apellido}</Form.Text>}
-            </Form.Group>
-
-            <Form.Group className="mb-2">
-              <Form.Label>Teléfono</Form.Label>
-              <Form.Control
-                name="telefono"
-                value={formData.telefono}
-                onChange={handleChange}
-                placeholder="Solo 10 dígitos"
-                maxLength={10}
-              />
-              {fieldErrors.telefono && <Form.Text className="text-danger">{fieldErrors.telefono}</Form.Text>}
-            </Form.Group>
-
-            <Form.Group className="mb-2">
-              <Form.Label>Email</Form.Label>
-              <Form.Control
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="usuario@midominio.com"
-              />
-              {fieldErrors.email && <Form.Text className="text-danger">{fieldErrors.email}</Form.Text>}
-            </Form.Group>
-
-            {!editingUser && (
-              <Form.Group className="mb-2">
-                <Form.Label>Contraseña</Form.Label>
-                <Form.Control type="password" name="password" value={formData.password} onChange={handleChange} />
-                {fieldErrors.password && <Form.Text className="text-danger">{fieldErrors.password}</Form.Text>}
-              </Form.Group>
+          <Card.Body>
+            {alertState.visible && (
+              <Alert
+                variant={alertState.variant}
+                onClose={() => setAlertState((s) => ({ ...s, visible: false }))}
+                dismissible
+              >
+                {alertState.message}
+              </Alert>
             )}
 
-            <Form.Group className="mb-2">
-              <Form.Label>Rol</Form.Label>
-              <Form.Select name="rol_id" value={formData.rol_id} onChange={handleChange}>
-                <option value="">Seleccione un rol</option>
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.nombre}
-                  </option>
-                ))}
-              </Form.Select>
-              {fieldErrors.rol_id && <Form.Text className="text-danger">{fieldErrors.rol_id}</Form.Text>}
-            </Form.Group>
-
-            {fieldErrors._general && <Alert variant="danger">{fieldErrors._general}</Alert>}
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModal} disabled={isSaving}>
-            Cancelar
-          </Button>
-          <Button variant="primary" onClick={handleSave} disabled={isSaving}>
-            {isSaving ? (
-              <>
-                <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" /> Guardando...
-              </>
+            {isLoading ? (
+              <div className="text-center my-3">
+                <Spinner animation="border" role="status" style={{ color: "#00482B" }} />
+              </div>
             ) : (
-              "Guardar"
+              <>
+                <Table striped bordered hover responsive>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Nombre</th>
+                      <th>Apellido</th>
+                      <th>Teléfono</th>
+                      <th>Email</th>
+                      <th>Rol</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(usuarios || []).map((u) => (
+                      <tr key={u.id}>
+                        <td>{u.id}</td>
+                        <td>{u.nombre}</td>
+                        <td>{u.apellido}</td>
+                        <td>{u.telefono}</td>
+                        <td>{u.email}</td>
+                        <td>{roles.find((r) => r.id === u.rol_id)?.nombre || "-"}</td>
+                        <td>
+                          <Button
+                            size="sm"
+                            variant="warning"
+                            onClick={() => handleOpenModal(u)}
+                            className="me-2"
+                            disabled={isSaving || deletingId === u.id}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => handleDelete(u.id)}
+                            disabled={isSaving || deletingId === u.id}
+                          >
+                            {deletingId === u.id ? (
+                              <>
+                                <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" /> Eliminando...
+                              </>
+                            ) : (
+                              "Eliminar"
+                            )}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+
+                <Pagination className="justify-content-center">
+                  <Pagination.First disabled={page === 1} onClick={() => setPage(1)} />
+                  <Pagination.Prev disabled={page === 1} onClick={() => setPage((prev) => Math.max(prev - 1, 1))} />
+                  {[...Array(totalPages)].map((_, i) => (
+                    <Pagination.Item key={i} active={page === i + 1} onClick={() => setPage(i + 1)}>
+                      {i + 1}
+                    </Pagination.Item>
+                  ))}
+                  <Pagination.Next disabled={page === totalPages} onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))} />
+                  <Pagination.Last disabled={page === totalPages} onClick={() => setPage(totalPages)} />
+                </Pagination>
+              </>
             )}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </Container>
+          </Card.Body>
+        </Card>
+
+        <Modal show={showModal} onHide={handleCloseModal}>
+          <Modal.Header closeButton style={{ backgroundColor: "#00482B" }}>
+            <Modal.Title style={{ color: "#FBE122" }}>{editingUser ? "Editar Usuario" : "Nuevo Usuario"}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Form>
+              <Form.Group className="mb-2">
+                <Form.Label>Nombre</Form.Label>
+                <Form.Control name="nombre" value={formData.nombre} onChange={handleChange} />
+                {fieldErrors.nombre && <Form.Text className="text-danger">{fieldErrors.nombre}</Form.Text>}
+              </Form.Group>
+
+              <Form.Group className="mb-2">
+                <Form.Label>Apellido</Form.Label>
+                <Form.Control name="apellido" value={formData.apellido} onChange={handleChange} />
+                {fieldErrors.apellido && <Form.Text className="text-danger">{fieldErrors.apellido}</Form.Text>}
+              </Form.Group>
+
+              <Form.Group className="mb-2">
+                <Form.Label>Teléfono</Form.Label>
+                <Form.Control
+                  name="telefono"
+                  value={formData.telefono}
+                  onChange={handleChange}
+                  placeholder="Solo 10 dígitos"
+                  maxLength={10}
+                />
+                {fieldErrors.telefono && <Form.Text className="text-danger">{fieldErrors.telefono}</Form.Text>}
+              </Form.Group>
+
+              <Form.Group className="mb-2">
+                <Form.Label>Email</Form.Label>
+                <Form.Control
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="usuario@midominio.com"
+                />
+                {fieldErrors.email && <Form.Text className="text-danger">{fieldErrors.email}</Form.Text>}
+              </Form.Group>
+
+              {!editingUser && (
+                <Form.Group className="mb-2">
+                  <Form.Label>Contraseña</Form.Label>
+                  <Form.Control type="password" name="password" value={formData.password} onChange={handleChange} />
+                  {fieldErrors.password && <Form.Text className="text-danger">{fieldErrors.password}</Form.Text>}
+                </Form.Group>
+              )}
+
+              <Form.Group className="mb-2">
+                <Form.Label>Rol</Form.Label>
+                <Form.Select name="rol_id" value={formData.rol_id} onChange={handleChange}>
+                  <option value="">Seleccione un rol</option>
+                  {roles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.nombre}
+                    </option>
+                  ))}
+                </Form.Select>
+                {fieldErrors.rol_id && <Form.Text className="text-danger">{fieldErrors.rol_id}</Form.Text>}
+              </Form.Group>
+
+              {fieldErrors._general && <Alert variant="danger">{fieldErrors._general}</Alert>}
+            </Form>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={handleCloseModal} disabled={isSaving}>
+              Cancelar
+            </Button>
+            <Button
+              style={{ backgroundColor: "#FBE122", borderColor: "#FBE122", color: "#00482B", fontWeight: "bold" }}
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" /> Guardando...
+                </>
+              ) : (
+                "Guardar"
+              )}
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      </Container>
+    </div>
   );
 };
 

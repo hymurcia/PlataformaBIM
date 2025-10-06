@@ -303,6 +303,40 @@ const actualizarMantenimientoEstado = async (req, res) => {
   }
 };
 
+
+// PUT /mantenimientos/:id/reprogramar
+const reprogramarMantenimiento = async (req, res) => {
+  const { id } = req.params;
+  const { fecha_programada } = req.body; // usar el nombre real de la columna
+
+  if (!fecha_programada) {
+    return res.status(400).json({ error: "La nueva fecha es requerida" });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE mantenimientos 
+       SET fecha_programada = $1 
+       WHERE id = $2 
+       RETURNING *`,
+      [fecha_programada, id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Mantenimiento no encontrado" });
+    }
+
+    res.json({
+      message: "Mantenimiento reprogramado correctamente",
+      mantenimiento: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Error al reprogramar mantenimiento:", error);
+    res.status(500).json({ error: "Error del servidor" });
+  }
+};
+
+
 // ==========================
 // Eliminar un mantenimiento
 // ==========================
@@ -330,5 +364,6 @@ module.exports = {
   crearMantenimiento,
   actualizarMantenimiento,
   actualizarMantenimientoEstado,
+  reprogramarMantenimiento,
   eliminarMantenimiento
 };

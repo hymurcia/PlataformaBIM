@@ -1,0 +1,21 @@
+.table-dark th,
+.table-dark td {
+  vertical-align: middle;
+}
+
+.table-dark th {
+  background-color: #013b26 !important;
+  color: #fff !important;
+}
+
+.badge {
+  font-size: 0.85em;
+}
+
+button.btn {
+  transition: all 0.2s ease-in-out;
+}
+
+button.btn:hover {
+  transform: scale(1.05);
+}
