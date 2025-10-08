@@ -65,7 +65,6 @@ const PanelInformes = () => {
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedTab, setSelectedTab] = useState("inventario");
-  const [showDownload, setShowDownload] = useState(false);
   const [modulosSeleccionados, setModulosSeleccionados] = useState({
     inventario: true,
     mantenimientos: true,
@@ -101,25 +100,53 @@ const PanelInformes = () => {
   const descargarPDF = async () => {
     try {
       setDownloading(true);
-      const modulos = Object.keys(modulosSeleccionados).filter(
+      
+      // Verificar que al menos un módulo esté seleccionado
+      const modulosActivos = Object.keys(modulosSeleccionados).filter(
         (m) => modulosSeleccionados[m]
       );
-      const query =
-        modulos.map((m) => `modulos=${m}`).join("&") +
-        (fechaInicio ? `&fechaInicio=${fechaInicio}` : "") +
-        (fechaFin ? `&fechaFin=${fechaFin}` : "");
+      
+      if (modulosActivos.length === 0) {
+        setError("Por favor selecciona al menos un módulo para generar el informe.");
+        setDownloading(false);
+        return;
+      }
 
-      window.open(`${API_URL}/pdf?${query}`, "_blank");
+      // Construir parámetros de consulta
+      const params = new URLSearchParams();
+      modulosActivos.forEach(modulo => params.append('modulos', modulo));
+      
+      if (fechaInicio) params.append('fechaInicio', fechaInicio);
+      if (fechaFin) params.append('fechaFin', fechaFin);
+
+      // Crear URL para descargar el PDF
+      const pdfUrl = `${API_URL}/pdf?${params.toString()}`;
+      
+      // Abrir en nueva pestaña para vista previa
+      window.open(pdfUrl, '_blank');
+      
       setDownloading(false);
     } catch (err) {
-      setError("Error al generar el PDF.");
+      console.error("Error al generar PDF:", err);
+      setError("Error al generar el PDF. Por favor, intenta nuevamente.");
       setDownloading(false);
     }
   };
 
   const handleSelect = (key) => {
     setSelectedTab(key);
-    setShowDownload(false);
+  };
+
+  // Filtrar datos según fechas seleccionadas
+  const filtrarPorFechas = (datos, campoFecha) => {
+    if (!fechaInicio && !fechaFin) return datos;
+    
+    return datos.filter(item => {
+      const fechaItem = new Date(item[campoFecha]);
+      if (fechaInicio && fechaItem < new Date(fechaInicio)) return false;
+      if (fechaFin && fechaItem > new Date(fechaFin + 'T23:59:59')) return false;
+      return true;
+    });
   };
 
   if (loading) {
@@ -137,7 +164,7 @@ const PanelInformes = () => {
         <Alert variant="danger" className="shadow-sm rounded-3">
           {error}
         </Alert>
-        <Button onClick={cargarDatos} variant="primary">
+        <Button onClick={cargarDatos} variant="primary" className="mt-3">
           Reintentar
         </Button>
       </Container>
@@ -263,11 +290,7 @@ const PanelInformes = () => {
               <Tab eventKey="mantenimientos" title="Mantenimientos">
                 <TablaAuditoria
                   headers={["ID", "Nombre", "Estado", "Fecha Programada", "Responsable"]}
-                  rows={data.mantenimientos.filter((m) => {
-                    if (fechaInicio && new Date(m.fecha_programada) < new Date(fechaInicio)) return false;
-                    if (fechaFin && new Date(m.fecha_programada) > new Date(fechaFin)) return false;
-                    return true;
-                  })}
+                  rows={filtrarPorFechas(data.mantenimientos, 'fecha_programada')}
                   renderRow={(m, idx) => (
                     <tr key={idx}>
                       <td>{m.id}</td>
@@ -284,11 +307,7 @@ const PanelInformes = () => {
               <Tab eventKey="incidentes" title="Incidentes">
                 <TablaAuditoria
                   headers={["ID", "Descripción", "Estado", "Fecha Creación"]}
-                  rows={data.incidentes.filter((i) => {
-                    if (fechaInicio && new Date(i.fecha_creacion) < new Date(fechaInicio)) return false;
-                    if (fechaFin && new Date(i.fecha_creacion) > new Date(fechaFin)) return false;
-                    return true;
-                  })}
+                  rows={filtrarPorFechas(data.incidentes, 'fecha_creacion')}
                   renderRow={(i, idx) => (
                     <tr key={idx}>
                       <td>{i.id}</td>
@@ -317,30 +336,20 @@ const PanelInformes = () => {
             </Tabs>
 
             <div className="text-center mt-4">
-              {!showDownload ? (
-                <Button
-                  variant="outline-primary"
-                  className="px-4 rounded-pill shadow-sm"
-                  onClick={() => setShowDownload(true)}
-                >
-                  👁️ Vista Previa
-                </Button>
-              ) : (
-                <Button
-                  variant="success"
-                  className="px-4 rounded-pill shadow-sm"
-                  onClick={descargarPDF}
-                  disabled={downloading}
-                >
-                  {downloading ? (
-                    <>
-                      <Spinner as="span" animation="border" size="sm" /> Generando...
-                    </>
-                  ) : (
-                    "📥 Descargar Informe PDF"
-                  )}
-                </Button>
-              )}
+              <Button
+                variant="success"
+                className="px-4 rounded-pill shadow-sm"
+                onClick={descargarPDF}
+                disabled={downloading}
+              >
+                {downloading ? (
+                  <>
+                    <Spinner as="span" animation="border" size="sm" /> Generando PDF...
+                  </>
+                ) : (
+                  "📥 Descargar Informe PDF"
+                )}
+              </Button>
             </div>
           </Card.Body>
         </Card>

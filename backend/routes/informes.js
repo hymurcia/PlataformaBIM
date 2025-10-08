@@ -9,3 +9,4 @@ router.get("/", obtenerAuditoria);
 router.get("/pdf", generarPDF);
 
 module.exports = router;
+

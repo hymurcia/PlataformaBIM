@@ -136,106 +136,204 @@ const regenerarPDF = async (req, res) => {
   }
 };
 
-// 🎨 Generador de PDF con formato profesional
+// 🎨 Generador de PDF con formato profesional - UNA SOLA PÁGINA
 const generarPDFProfesional = (solicitud, aprobador, outputPath) => {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 50 });
+    const doc = new PDFDocument({ 
+      margin: 50,
+      size: 'A4',
+      bufferPages: false // IMPORTANTE: Evitar múltiples páginas
+    });
 
     // Crear carpeta si no existe
     const dir = path.dirname(outputPath);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
 
     const stream = fs.createWriteStream(outputPath);
     doc.pipe(stream);
 
-    // --- Encabezado con logo ---
+    // --- ENCABEZADO ---
+    // Logo (si existe)
     const logoPath = path.join(__dirname, "../assets/logo.png");
     if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, 50, 40, { width: 80 });
+      doc.image(logoPath, 50, 45, { width: 60 });
     }
 
+    // Título principal centrado
     doc
-      .fontSize(20)
-      .text("PLATAFORMA BIM", 150, 50, { align: "center", bold: true })
-      .moveDown(2);
+      .fontSize(18)
+      .font('Helvetica-Bold')
+      .fillColor('#003366')
+      .text("PLATAFORMA BIM", 50, 50, { width: 500, align: "center" });
 
+    // Subtítulo
     doc
-      .fontSize(16)
-      .fillColor("#003366")
-      .text("SOLICITUD DE ADQUISICIÓN", { align: "center", underline: true })
-      .moveDown(1);
-
-    // Línea separadora
-    doc.moveTo(50, 150).lineTo(550, 150).stroke("#003366").moveDown(2);
-
-    // Información principal
-    doc
-      .fontSize(12)
-      .fillColor("black")
-      .text(`📄 ID Solicitud: ${solicitud.id}`)
-      .text(`👤 Solicitante: ${solicitud.usuario_solicitante}`)
-      .text(`📦 Ítem solicitado: ${solicitud.item_solicitado}`)
-      .text(`🔢 Cantidad: ${solicitud.cantidad}`)
-      .text(
-        `🗓 Fecha de solicitud: ${new Date(
-          solicitud.fecha_solicitud
-        ).toLocaleString()}`
-      )
-      .text(`✅ Estado actual: ${solicitud.estado_solicitud}`)
-      .moveDown(1);
-
-    // Justificación
-    doc
-      .fontSize(12)
-      .fillColor("#003366")
-      .text("Justificación:", { underline: true })
-      .moveDown(0.5);
-
-    doc
-      .fontSize(12)
-      .fillColor("black")
-      .text(solicitud.justificacion || "No especificada", {
-        align: "justify",
-      })
-      .moveDown(1.5);
-
-    // Aprobación
-    doc
-      .fontSize(12)
-      .fillColor("#003366")
-      .text("Aprobación:", { underline: true })
-      .moveDown(0.5);
-
-    doc
-      .fontSize(12)
-      .fillColor("black")
-      .text(`Aprobado por: ${aprobador}`)
-      .text(`Fecha de aprobación: ${new Date().toLocaleString()}`)
-      .moveDown(3);
-
-    // Firma
-    doc
-      .moveDown(3)
-      .fontSize(10)
-      .text("---------------------------", { align: "center" })
-      .text(`${aprobador}`, { align: "center" })
-      .text("Firma del aprobador", { align: "center" });
-
-    // Pie de página
-    doc
-      .moveDown(2)
-      .fontSize(9)
-      .fillColor("gray")
-      .text("Generado automáticamente por la Plataforma BIM", {
+      .fontSize(14)
+      .text("SOLICITUD DE ADQUISICIÓN", 50, 80, { 
+        width: 500,
         align: "center",
+        underline: true 
       });
 
+    // Línea separadora
+    doc
+      .moveTo(50, 120)
+      .lineTo(545, 120)
+      .lineWidth(2)
+      .strokeColor('#003366')
+      .stroke();
+
+    // --- INFORMACIÓN DE LA SOLICITUD ---
+    let yPosition = 150;
+
+    // Función para agregar campo de información
+    const agregarCampo = (etiqueta, valor, y) => {
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .fillColor('#333333')
+        .text(etiqueta, 50, y);
+      
+      doc
+        .font('Helvetica')
+        .text(valor.toString(), 180, y);
+      
+      return y + 20;
+    };
+
+    // Campos de información
+    yPosition = agregarCampo('ID Solicitud:', solicitud.id.toString(), yPosition);
+    yPosition = agregarCampo('Solicitante:', solicitud.usuario_solicitante, yPosition);
+    yPosition = agregarCampo('Item solicitado:', solicitud.item_solicitado, yPosition);
+    yPosition = agregarCampo('Cantidad:', solicitud.cantidad.toString(), yPosition);
+    
+    // Formatear fecha correctamente
+    const fechaSolicitud = new Date(solicitud.fecha_solicitud);
+    const fechaFormateada = fechaSolicitud.toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    yPosition = agregarCampo('Fecha de solicitud:', fechaFormateada, yPosition);
+    yPosition = agregarCampo('Estado actual:', solicitud.estado_solicitud, yPosition);
+
+    // --- JUSTIFICACIÓN ---
+    yPosition += 30;
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(12)
+      .fillColor('#003366')
+      .text('Justificación:', 50, yPosition);
+
+    // Rectángulo de fondo para justificación (más compacto)
+    const alturaJustificacion = 40; // Más compacto
+    doc
+      .rect(50, yPosition + 15, 495, alturaJustificacion)
+      .fillColor('#f8f9fa')
+      .fill()
+      .strokeColor('#dee2e6')
+      .stroke();
+
+    // Texto de justificación
+    doc
+      .font('Helvetica')
+      .fontSize(11)
+      .fillColor('#333333')
+      .text(solicitud.justificacion || 'No especificada', 55, yPosition + 20, {
+        width: 485,
+        align: 'justify'
+      });
+
+    // --- APROBACIÓN ---
+    yPosition += alturaJustificacion + 50;
+
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(12)
+      .fillColor('#003366')
+      .text('Aprobación:', 50, yPosition);
+
+    // Información de aprobación
+    yPosition += 20;
+    
+    // Usar fecha de aprobación de la solicitud si existe, sino fecha actual
+    const fechaAprobacion = solicitud.fecha_aprobacion 
+      ? new Date(solicitud.fecha_aprobacion).toLocaleDateString('es-ES', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      : new Date().toLocaleDateString('es-ES', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+    yPosition = agregarCampo('Aprobado por:', aprobador, yPosition);
+    yPosition = agregarCampo('Fecha de aprobación:', fechaAprobacion, yPosition);
+
+    // --- FIRMA ---
+    yPosition += 40;
+    doc
+      .font('Helvetica')
+      .fontSize(10)
+      .fillColor('#666666')
+      .text('_________________________', 50, yPosition)
+      .text(aprobador, 50, yPosition + 15)
+      .text('Firma del aprobador', 50, yPosition + 30);
+
+    // --- PIE DE PÁGINA ---
+    // Calcular posición fija para el pie de página (parte inferior)
+    const pageHeight = 842; // Altura de página A4 en puntos
+    const pieYPosition = pageHeight - 80; // Posición fija cerca del fondo
+    
+    // Línea separadora del pie de página
+    doc
+      .moveTo(50, pieYPosition - 10)
+      .lineTo(545, pieYPosition - 10)
+      .lineWidth(0.5)
+      .strokeColor('#cccccc')
+      .stroke();
+
+    // Texto del pie de página
+    doc
+      .fontSize(9)
+      .fillColor('#999999')
+      .text(
+        'Generado automáticamente por la Plataforma BIM', 
+        50, 
+        pieYPosition, 
+        { width: 500, align: "center" }
+      );
+
+    // Número de página - SOLO UNA
+    doc
+      .text('Página 1 de 1', 50, pieYPosition + 15, { width: 500, align: "center" });
+
+    // FINALIZAR DOCUMENTO
     doc.end();
 
-    stream.on("finish", () => resolve(outputPath));
-    stream.on("error", reject);
+    stream.on("finish", () => {
+      console.log(`✅ PDF generado correctamente en una sola página: ${outputPath}`);
+      resolve(outputPath);
+    });
+    
+    stream.on("error", (error) => {
+      console.error('❌ Error al generar PDF:', error);
+      reject(error);
+    });
   });
 };
+
 
 module.exports = {
   crearSolicitud,

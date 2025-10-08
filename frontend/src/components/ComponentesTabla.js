@@ -1,22 +1,23 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { ProgressBar, Button, Modal, Form, Spinner, Badge } from "react-bootstrap";
-import facatativaFondo from "../assets/facatativa-2.jpg"; // asegúrate de tener la imagen
-import "./TablaComponente.css"; // estilos externos opcionales
+import { ProgressBar, Button, Modal, Form, Spinner, Badge, Table } from "react-bootstrap";
+import facatativaFondo from "../assets/facatativa-2.jpg";
+import "./TablaComponente.css";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://192.168.56.1:5000";
 
 const TablaComponentes = () => {
   const [componentes, setComponentes] = useState([]);
-  const [inventario, setInventario] = useState([]); // ✅ agregado
+  const [inventario, setInventario] = useState([]);
   const [ubicaciones, setUbicaciones] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [filtroUbicacion, setFiltroUbicacion] = useState('');
+  const [error, setError] = useState("");
+  const [filtroUbicacion, setFiltroUbicacion] = useState("");
 
   // Modales
   const [showModal, setShowModal] = useState(false);
   const [showBajaModal, setShowBajaModal] = useState(false);
+  const [showHistorialModal, setShowHistorialModal] = useState(false);
 
   const [form, setForm] = useState({
     nombre: "",
@@ -29,6 +30,7 @@ const TablaComponentes = () => {
 
   const [componenteBaja, setComponenteBaja] = useState(null);
   const [nuevoNumeroSerie, setNuevoNumeroSerie] = useState("");
+  const [componentesBaja, setComponentesBaja] = useState([]);
 
   const token = localStorage.getItem("token") || "";
   const headers = { Authorization: `Bearer ${token}` };
@@ -41,6 +43,10 @@ const TablaComponentes = () => {
       const resUb = await axios.get(`${API_BASE_URL}/ubicaciones`, { headers });
       setComponentes(resComp.data);
       setUbicaciones(resUb.data);
+
+      // Guardar también los que están en baja
+      const bajas = resComp.data.filter((c) => c.estado === "baja");
+      setComponentesBaja(bajas);
     } catch (err) {
       setError("❌ Error al cargar componentes o ubicaciones");
       console.error(err);
@@ -52,7 +58,7 @@ const TablaComponentes = () => {
   const fetchInventario = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/inventario`, { headers });
-      setInventario(res.data); // ✅ ahora funciona
+      setInventario(res.data);
     } catch (err) {
       console.error("Error al cargar inventario:", err);
     }
@@ -66,9 +72,7 @@ const TablaComponentes = () => {
   // 🔹 Autocompletar inventario
   useEffect(() => {
     if (form.inventario_id) {
-      const item = inventario.find(
-        (i) => i.id === parseInt(form.inventario_id)
-      );
+      const item = inventario.find((i) => i.id === parseInt(form.inventario_id));
       if (item) {
         setForm((prev) => ({
           ...prev,
@@ -92,15 +96,11 @@ const TablaComponentes = () => {
     try {
       const payload = {
         ...form,
-        vida_util_meses: form.vida_util_meses
-          ? parseInt(form.vida_util_meses)
-          : null,
+        vida_util_meses: form.vida_util_meses ? parseInt(form.vida_util_meses) : null,
         ubicacion_id: form.ubicacion_id ? parseInt(form.ubicacion_id) : null,
         inventario_id: form.inventario_id ? parseInt(form.inventario_id) : null,
       };
-      const res = await axios.post(`${API_BASE_URL}/componentes`, payload, {
-        headers,
-      });
+      const res = await axios.post(`${API_BASE_URL}/componentes`, payload, { headers });
       alert(res.data.message || "✅ Componente creado correctamente");
       setShowModal(false);
       resetForm();
@@ -123,39 +123,40 @@ const TablaComponentes = () => {
   };
 
   // 🔹 Vida útil
-const obtenerPorcentajeVida = (c) => {
-  const vidaUtil = c.vida_util_meses || 0;
-  if (!c.fecha_instalacion || !vidaUtil) {
-    return { porcentaje: 0, color: 'secondary', texto: 'Sin datos' };
-  }
+  const obtenerPorcentajeVida = (c) => {
+    const vidaUtil = c.vida_util_meses || 0;
+    if (!c.fecha_instalacion || !vidaUtil) {
+      return { porcentaje: 0, color: "secondary", texto: "Sin datos" };
+    }
 
-  const fechaInstalacion = new Date(c.fecha_instalacion);
-  const hoy = new Date();
-  const mesesUsados = (hoy.getFullYear() - fechaInstalacion.getFullYear()) * 12
-    + (hoy.getMonth() - fechaInstalacion.getMonth());
+    const fechaInstalacion = new Date(c.fecha_instalacion);
+    const hoy = new Date();
+    const mesesUsados =
+      (hoy.getFullYear() - fechaInstalacion.getFullYear()) * 12 +
+      (hoy.getMonth() - fechaInstalacion.getMonth());
 
-  const porcentaje = Math.min((mesesUsados / vidaUtil) * 100, 100);
+    const porcentaje = Math.min((mesesUsados / vidaUtil) * 100, 100);
 
-  let color = "success";
-  let texto = "En buen estado";
-  if (porcentaje >= 100) {
-    color = "danger";
-    texto = "Revisión inmediata";
-  } else if (porcentaje >= 80) {
-    color = "warning";
-    texto = "Revisión próxima";
-  }
+    let color = "success";
+    let texto = "En buen estado";
+    if (porcentaje >= 100) {
+      color = "danger";
+      texto = "Revisión inmediata";
+    } else if (porcentaje >= 80) {
+      color = "warning";
+      texto = "Revisión próxima";
+    }
 
-  return { porcentaje, color, texto };
-};
+    return { porcentaje, color, texto };
+  };
 
-
-
-  // 🔹 Filtrar
+  // 🔹 Filtrar solo activos
+  const componentesActivos = componentes.filter((c) => c.estado === "activo");
   const componentesFiltrados = filtroUbicacion
-    ? componentes.filter((c) => c.ubicacion_id === parseInt(filtroUbicacion))
-    : componentes;
+    ? componentesActivos.filter((c) => c.ubicacion_id === parseInt(filtroUbicacion))
+    : componentesActivos;
 
+  // 🔹 Baja de componente
   const abrirModalBaja = (componente) => {
     setComponenteBaja(componente);
     setNuevoNumeroSerie("");
@@ -205,11 +206,9 @@ const obtenerPorcentajeVida = (c) => {
           boxShadow: "0 8px 25px rgba(0,0,0,0.4)",
         }}
       >
-        <h3 className="mb-4 text-center fw-bold">
-          🧩 Gestión de Componentes del Sistema
-        </h3>
+        <h3 className="mb-4 text-center fw-bold">🧩 Gestión de Componentes Activos</h3>
 
-        {/* Filtro */}
+        {/* Controles superiores */}
         <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
           <div className="d-flex gap-2 align-items-center">
             <Form.Label className="mb-0">Filtrar por ubicación:</Form.Label>
@@ -226,18 +225,21 @@ const obtenerPorcentajeVida = (c) => {
               ))}
             </Form.Select>
             {filtroUbicacion && (
-              <Badge bg="info">
-                {componentesFiltrados.length} componentes
-              </Badge>
+              <Badge bg="info">{componentesFiltrados.length} componentes</Badge>
             )}
           </div>
 
-          <Button variant="success" onClick={() => setShowModal(true)}>
-            ➕ Nuevo Componente
-          </Button>
+          <div className="d-flex gap-2">
+            <Button variant="success" onClick={() => setShowModal(true)}>
+              ➕ Nuevo Componente
+            </Button>
+            <Button variant="secondary" onClick={() => setShowHistorialModal(true)}>
+              📜 Ver historial de bajas
+            </Button>
+          </div>
         </div>
 
-        {/* Tabla */}
+        {/* Tabla principal */}
         {loading ? (
           <div className="text-center p-4">
             <Spinner animation="border" variant="light" /> Cargando datos...
@@ -270,7 +272,8 @@ const obtenerPorcentajeVida = (c) => {
                         <td>{c.numero_serie || "-"}</td>
                         <td>{c.vida_util_meses || "-"}</td>
                         <td>
-                          {ubicaciones.find((u) => u.id === c.ubicacion_id)?.nombre || "Sin ubicación"}
+                          {ubicaciones.find((u) => u.id === c.ubicacion_id)?.nombre ||
+                            "Sin ubicación"}
                         </td>
                         <td>
                           <Badge bg={c.estado === "activo" ? "success" : "secondary"}>
@@ -286,11 +289,13 @@ const obtenerPorcentajeVida = (c) => {
                           />
                         </td>
                         <td>
-                          {c.estado !== "baja" && (
-                            <Button size="sm" variant="danger" onClick={() => abrirModalBaja(c)}>
-                              Dar de baja
-                            </Button>
-                          )}
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => abrirModalBaja(c)}
+                          >
+                            Dar de baja
+                          </Button>
                         </td>
                       </tr>
                     );
@@ -298,7 +303,7 @@ const obtenerPorcentajeVida = (c) => {
                 ) : (
                   <tr>
                     <td colSpan="8" className="text-center">
-                      No hay componentes registrados
+                      No hay componentes activos
                     </td>
                   </tr>
                 )}
@@ -319,9 +324,7 @@ const obtenerPorcentajeVida = (c) => {
               <Form.Label>Inventario disponible</Form.Label>
               <Form.Select
                 value={form.inventario_id}
-                onChange={(e) =>
-                  setForm({ ...form, inventario_id: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, inventario_id: e.target.value })}
               >
                 <option value="">Seleccione...</option>
                 {inventario.map((i) => (
@@ -336,9 +339,7 @@ const obtenerPorcentajeVida = (c) => {
               <Form.Label>Ubicación</Form.Label>
               <Form.Select
                 value={form.ubicacion_id}
-                onChange={(e) =>
-                  setForm({ ...form, ubicacion_id: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, ubicacion_id: e.target.value })}
               >
                 <option value="">Seleccione...</option>
                 {ubicaciones.map((u) => (
@@ -354,9 +355,7 @@ const obtenerPorcentajeVida = (c) => {
               <Form.Control
                 placeholder="Ej: COMP-12345"
                 value={form.numero_serie}
-                onChange={(e) =>
-                  setForm({ ...form, numero_serie: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, numero_serie: e.target.value })}
               />
             </Form.Group>
           </Form>
@@ -382,8 +381,7 @@ const obtenerPorcentajeVida = (c) => {
         </Modal.Header>
         <Modal.Body>
           <p>
-            Estás por dar de baja el componente{" "}
-            <strong>{componenteBaja?.nombre}</strong>.
+            Estás por dar de baja el componente <strong>{componenteBaja?.nombre}</strong>.
           </p>
           <Form.Group className="mb-3">
             <Form.Label>Número de serie del reemplazo</Form.Label>
@@ -398,12 +396,56 @@ const obtenerPorcentajeVida = (c) => {
           <Button variant="secondary" onClick={() => setShowBajaModal(false)}>
             Cancelar
           </Button>
-          <Button
-            variant="danger"
-            disabled={!nuevoNumeroSerie}
-            onClick={handleDarDeBaja}
-          >
+          <Button variant="danger" disabled={!nuevoNumeroSerie} onClick={handleDarDeBaja}>
             Confirmar baja
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Modal Historial de bajas */}
+      <Modal
+        show={showHistorialModal}
+        onHide={() => setShowHistorialModal(false)}
+        size="lg"
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>📜 Historial de componentes dados de baja</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {componentesBaja.length > 0 ? (
+            <Table striped bordered hover responsive>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nombre</th>
+                  <th>Número de serie</th>
+                  <th>Ubicación</th>
+                  <th>Fecha última revisión</th>
+                </tr>
+              </thead>
+              <tbody>
+                {componentesBaja.map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.id}</td>
+                    <td>{c.nombre}</td>
+                    <td>{c.numero_serie || "-"}</td>
+                    <td>
+                      {ubicaciones.find((u) => u.id === c.ubicacion_id)?.nombre ||
+                        "Sin ubicación"}
+                    </td>
+                    <td>{c.fecha_ultima_revision || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          ) : (
+            <p>No hay componentes dados de baja.</p>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowHistorialModal(false)}>
+            Cerrar
           </Button>
         </Modal.Footer>
       </Modal>
@@ -411,4 +453,4 @@ const obtenerPorcentajeVida = (c) => {
   );
 };
 
-export default TablaComponentes; // ✅ corregido
+export default TablaComponentes;

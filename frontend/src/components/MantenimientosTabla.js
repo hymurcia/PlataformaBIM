@@ -40,14 +40,13 @@ const MantenimientosTable = () => {
       setLoading(true);
       const [resM, resC, resU, resR] = await Promise.all([
         axios.get(`${API_BASE_URL}/mantenimientos`, { headers }),
-        axios.get(`${API_BASE_URL}/componentes`, { headers }), // Cambiado
+        axios.get(`${API_BASE_URL}/componentes`, { headers }),
         axios.get(`${API_BASE_URL}/ubicaciones`, { headers }),
         axios.get(`${API_BASE_URL}/asignaciones/responsables`, { headers })
       ]);
 
       setMantenimientos(resM.data);
       setComponentes(resC.data);
-      setFilteredComponentes(resC.data);
       setUbicaciones(resU.data);
       setResponsables(resR.data);
       setError("");
@@ -63,6 +62,20 @@ const MantenimientosTable = () => {
     fetchData();
   }, []);
 
+  // ================= Filtrar componentes disponibles y activos =================
+  useEffect(() => {
+    if (mantenimientos.length > 0 && componentes.length > 0) {
+      const componentesConMantenimiento = mantenimientos
+        .filter(m => m.componente_id)
+        .map(m => m.componente_id);
+      
+      const componentesDisponibles = componentes.filter(
+        c => !componentesConMantenimiento.includes(c.id) && c.estado === "activo"
+      );
+      setFilteredComponentes(componentesDisponibles);
+    }
+  }, [mantenimientos, componentes]);
+
   // ================= Helpers =================
   const nombreUbicacion = (id) => {
     const u = ubicaciones.find((u) => u.id === parseInt(id));
@@ -72,6 +85,11 @@ const MantenimientosTable = () => {
   const nombreResponsable = (id) => {
     const r = responsables.find((r) => r.id === parseInt(id));
     return r ? `${r.nombre} ${r.apellido}` : "Sin asignar";
+  };
+
+  const nombreComponente = (id) => {
+    const c = componentes.find((c) => c.id === parseInt(id));
+    return c ? c.nombre : "N/A";
   };
 
   const formatFecha = (fecha) => {
@@ -89,16 +107,29 @@ const MantenimientosTable = () => {
     }
   };
 
-  // ================= Filtrar componentes =================
+  // ================= Filtrar componentes por ubicación =================
   const handleChange = (e) => {
     const { name, value } = e.target;
 
     if (name === "ubicacion_id") {
       const compFiltrados = value
-        ? componentes.filter(c => c.ubicacion_id === parseInt(value))
-        : componentes;
+        ? componentes.filter(c => 
+            c.ubicacion_id === parseInt(value) && 
+            !mantenimientos.some(m => m.componente_id === c.id) &&
+            c.estado === "activo"
+          )
+        : componentes.filter(c => 
+            !mantenimientos.some(m => m.componente_id === c.id) &&
+            c.estado === "activo"
+          );
+      
       setFilteredComponentes(compFiltrados);
-      setForm(prev => ({ ...prev, componente_id: "", ubicacion_id: value }));
+      setForm(prev => ({ 
+        ...prev, 
+        componente_id: "", 
+        ubicacion_id: value,
+        descripcion: "" 
+      }));
       return;
     }
 
@@ -108,7 +139,7 @@ const MantenimientosTable = () => {
         setForm(prev => ({
           ...prev,
           componente_id: value,
-          ubicacion_id: comp.ubicacion_id,
+          ubicacion_id: comp.ubicacion_id.toString(),
           descripcion: `Número de serie: ${comp.numero_serie}`
         }));
       } else {
@@ -143,6 +174,12 @@ const MantenimientosTable = () => {
         setFormError("⚠️ Este componente ya tiene un mantenimiento asignado");
         return false;
       }
+
+      const componente = componentes.find(c => c.id === parseInt(form.componente_id));
+      if (componente && componente.estado !== "activo") {
+        setFormError("⚠️ No se puede asignar mantenimiento a un componente que no está activo");
+        return false;
+      }
     }
 
     return true;
@@ -168,7 +205,20 @@ const MantenimientosTable = () => {
       setMantenimientos(prev => [...prev, mantenimientoCreado]);
       setSuccessMessage("✅ Mantenimiento creado con éxito");
 
-      // Intentar asignar responsable
+      // Actualizar mantenimientos y componentes disponibles
+      const resM = await axios.get(`${API_BASE_URL}/mantenimientos`, { headers });
+      setMantenimientos(resM.data);
+
+      const componentesConMantenimiento = resM.data
+        .filter(m => m.componente_id)
+        .map(m => m.componente_id);
+      
+      const componentesDisponibles = componentes.filter(
+        c => !componentesConMantenimiento.includes(c.id) && c.estado === "activo"
+      );
+      setFilteredComponentes(componentesDisponibles);
+
+      // Asignar responsable al componente si aplica
       if (form.componente_id && form.operario_id) {
         try {
           await axios.put(
@@ -176,9 +226,6 @@ const MantenimientosTable = () => {
             { responsable_id: form.operario_id },
             { headers }
           );
-          const resC = await axios.get(`${API_BASE_URL}/componentes`, { headers }); // Cambiado
-          setComponentes(resC.data);
-          setFilteredComponentes(resC.data);
         } catch (err2) {
           console.error("Error asignando responsable:", err2);
         }
@@ -195,6 +242,7 @@ const MantenimientosTable = () => {
         dias: "",
         comentarios: ""
       });
+
       setTimeout(() => setSuccessMessage(""), 5000);
     } catch (err) {
       console.error(err);
@@ -205,11 +253,18 @@ const MantenimientosTable = () => {
   };
 
   // ================= Ordenar mantenimientos =================
-  const mantenimientosOrdenados = [...mantenimientos].sort((a, b) => {
-    if (!a.fecha_programada) return 1;
-    if (!b.fecha_programada) return -1;
-    return new Date(a.fecha_programada) - new Date(b.fecha_programada);
-  });
+  const mantenimientosOrdenados = [...mantenimientos]
+    .filter(m => {
+      // Excluir mantenimientos de componentes en baja
+      if (!m.componente_id) return true;
+      const comp = componentes.find(c => c.id === m.componente_id);
+      return comp && comp.estado !== "baja";
+    })
+    .sort((a, b) => {
+      if (!a.fecha_programada) return 1;
+      if (!b.fecha_programada) return -1;
+      return new Date(a.fecha_programada) - new Date(b.fecha_programada);
+    });
 
   // ================= Render =================
   return (
@@ -224,7 +279,6 @@ const MantenimientosTable = () => {
         overflowY: "auto"
       }}
     >
-      {/* Overlay oscuro */}
       <div style={{ position: "absolute", top:0, left:0, width:"100%", height:"100%", backgroundColor:"rgba(0,0,0,0.5)", zIndex:1 }}></div>
 
       <Container style={{ position:"relative", zIndex: 2 }}>
@@ -241,11 +295,14 @@ const MantenimientosTable = () => {
             <Card className="mb-4 p-3">
               <h5 className="text-success mb-3">➕ Crear mantenimiento</h5>
               {formError && <Alert variant="danger">{formError}</Alert>}
-
               <Form onSubmit={handleSubmit}>
                 <div className="row g-2 mb-2">
-                  <div className="col-md-3"><Form.Control type="text" placeholder="Nombre" name="nombre" value={form.nombre} onChange={handleChange} required /></div>
-                  <div className="col-md-3"><Form.Control type="text" placeholder="Descripción" name="descripcion" value={form.descripcion} onChange={handleChange} /></div>
+                  <div className="col-md-3">
+                    <Form.Control type="text" placeholder="Nombre" name="nombre" value={form.nombre} onChange={handleChange} required />
+                  </div>
+                  <div className="col-md-3">
+                    <Form.Control type="text" placeholder="Descripción" name="descripcion" value={form.descripcion} onChange={handleChange} />
+                  </div>
                   <div className="col-md-2">
                     <Form.Select name="frecuencia" value={form.frecuencia} onChange={handleChange} required>
                       <option value="">Frecuencia</option>
@@ -257,8 +314,12 @@ const MantenimientosTable = () => {
                       <option value="anual">Anual</option>
                     </Form.Select>
                   </div>
-                  <div className="col-md-2"><Form.Control type="date" name="fecha_programada" value={form.fecha_programada} onChange={handleChange} /></div>
-                  <div className="col-md-2"><Form.Control type="number" placeholder="Días" name="dias" value={form.dias} onChange={handleChange} /></div>
+                  <div className="col-md-2">
+                    <Form.Control type="date" name="fecha_programada" value={form.fecha_programada} onChange={handleChange} />
+                  </div>
+                  <div className="col-md-2">
+                    <Form.Control type="number" placeholder="Días" name="dias" value={form.dias} onChange={handleChange} />
+                  </div>
                 </div>
 
                 <div className="row g-2 mb-2">
@@ -270,9 +331,12 @@ const MantenimientosTable = () => {
                   </div>
                   <div className="col-md-3">
                     <Form.Select name="componente_id" value={form.componente_id} onChange={handleChange}>
-                      <option value="">Selecciona componente</option>
-                      {filteredComponentes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                      <option value="">Selecciona componente (activos sin mantenimiento)</option>
+                      {filteredComponentes.map(c => (
+                        <option key={c.id} value={c.id}>{c.nombre} - {c.numero_serie}</option>
+                      ))}
                     </Form.Select>
+                    <small className="text-muted">Solo componentes activos sin mantenimiento asignado</small>
                   </div>
                   <div className="col-md-3">
                     <Form.Select name="operario_id" value={form.operario_id} onChange={handleChange}>
@@ -280,7 +344,9 @@ const MantenimientosTable = () => {
                       {responsables.map(r => <option key={r.id} value={r.id}>{r.nombre} {r.apellido}</option>)}
                     </Form.Select>
                   </div>
-                  <div className="col-md-3"><Form.Control type="text" placeholder="Comentarios" name="comentarios" value={form.comentarios} onChange={handleChange} /></div>
+                  <div className="col-md-3">
+                    <Form.Control type="text" placeholder="Comentarios" name="comentarios" value={form.comentarios} onChange={handleChange} />
+                  </div>
                 </div>
 
                 <Button type="submit" variant="success" disabled={formLoading}>
@@ -313,7 +379,7 @@ const MantenimientosTable = () => {
                         <td>{m.descripcion}</td>
                         <td><span className="badge bg-info text-dark">{m.frecuencia}</span></td>
                         <td>{m.operario_id ? nombreResponsable(m.operario_id) : 'Sin asignar'}</td>
-                        <td>{m.componente_nombre || 'General'}</td>
+                        <td>{m.componente_id ? nombreComponente(m.componente_id) : 'General'}</td>
                         <td>{m.ubicacion_id ? nombreUbicacion(m.ubicacion_id) : 'Sin ubicación'}</td>
                         <td>{formatFecha(m.fecha_programada)}</td>
                         <td>{formatFecha(m.fecha_ultima_ejecucion)}</td>
