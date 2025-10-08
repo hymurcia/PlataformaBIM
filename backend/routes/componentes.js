@@ -1,13 +1,22 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const componentesController = require('../controllers/componentesController');
+const {
+  obtenerComponentes,
+  obtenerComponenteById,
+  crearComponente,
+  actualizarComponente,
+  eliminarComponente,
+  darDeBajaComponente,
+} = require("../controllers/componentesController");
 
-// Usar las funciones del controlador correctamente
-router.get("/", componentesController.obtenerComponentes);
-router.get("/:id", componentesController.obtenerComponenteById);
-router.post("/", componentesController.crearComponente);
-router.put("/:id", componentesController.actualizarComponente);
-router.delete("/:id", componentesController.eliminarComponente);
+// Rutas principales
+router.get("/", obtenerComponentes);
+router.get("/:id", obtenerComponenteById);
+router.post("/", crearComponente);
+router.put("/:id", actualizarComponente);
+router.delete("/:id", eliminarComponente);
 
+// Nueva ruta: dar de baja un componente y asignar reemplazo
+router.put("/:id/baja", darDeBajaComponente);
 
 module.exports = router;

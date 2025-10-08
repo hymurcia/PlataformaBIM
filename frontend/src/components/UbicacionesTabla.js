@@ -12,6 +12,7 @@ const UbicacionesTable = () => {
   const [error, setError] = useState("");
   const [form, setForm] = useState({ area: "", bloque: "", piso: "", salon: "" });
   const [formError, setFormError] = useState("");
+  const [formSuccess, setFormSuccess] = useState("");
   const [formLoading, setFormLoading] = useState(false);
 
   const token = localStorage.getItem("token") || "";
@@ -74,6 +75,10 @@ const UbicacionesTable = () => {
       setUbicaciones((prev) => [...prev, res.data.ubicacion]);
       setForm({ area: "", bloque: "", piso: "", salon: "" });
       setFormError("");
+      setFormSuccess("✅ Ubicación creada con éxito");
+
+      // Ocultar mensaje de éxito después de 3 segundos
+      setTimeout(() => setFormSuccess(""), 3000);
     } catch (err) {
       console.error(err);
       if (err.response?.data?.error) {
@@ -146,6 +151,7 @@ const UbicacionesTable = () => {
             <Card className="p-3 mb-4">
               <h5 className="text-success mb-3">➕ Crear nueva ubicación</h5>
               {formError && <Alert variant="danger">{formError}</Alert>}
+              {formSuccess && <Alert variant="success">{formSuccess}</Alert>}
 
               <Form onSubmit={handleSubmit}>
                 <div className="row g-2">
@@ -159,22 +165,28 @@ const UbicacionesTable = () => {
                     />
                   </div>
                   <div className="col-md-3">
-                    <Form.Control
-                      type="text"
-                      placeholder="Bloque"
+                    <Form.Select
                       name="bloque"
                       value={form.bloque}
                       onChange={handleChange}
-                    />
+                    >
+                      <option value="">Bloque</option>
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                    </Form.Select>
                   </div>
                   <div className="col-md-3">
-                    <Form.Control
-                      type="text"
-                      placeholder="Piso"
+                    <Form.Select
                       name="piso"
                       value={form.piso}
                       onChange={handleChange}
-                    />
+                    >
+                      <option value="">Piso</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                    </Form.Select>
                   </div>
                   <div className="col-md-3">
                     <Form.Control

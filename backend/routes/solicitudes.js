@@ -1,11 +1,19 @@
+// routes/solicitudes.js
 const express = require("express");
 const router = express.Router();
-const { crearSolicitud, obtenerSolicitudes } = require("../controllers/solicitudesController");
+const {
+  crearSolicitud,
+  obtenerSolicitudes,
+  aprobarSolicitud,
+  regenerarPDF,
+} = require("../controllers/solicitudesController");
+const authMiddleware = require("../middleware/auth"); // ✅ Importar el middleware
 
-// Crear nueva solicitud
-router.post("/", crearSolicitud);
+// 🔐 Rutas protegidas
+router.post("/", authMiddleware, crearSolicitud);
+router.get("/", authMiddleware, obtenerSolicitudes);
+router.put("/:id/regenerar-pdf", authMiddleware, regenerarPDF);
+router.put("/:id/aprobar", authMiddleware, aprobarSolicitud);
 
-// Obtener todas las solicitudes
-router.get("/", obtenerSolicitudes);
 
 module.exports = router;

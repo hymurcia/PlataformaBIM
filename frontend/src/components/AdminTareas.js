@@ -79,27 +79,17 @@ const AdminTareas = ({ auth }) => {
     setShowAsignar(true);
   };
 
-  const handleAsignarSubmit = async (e) => {
-    e.preventDefault();
-    const { responsable_id, fecha_finalizacion } = formData;
-
-    if (!responsable_id) return setError('Debe seleccionar un responsable.');
-    if (!fecha_finalizacion) return setError('Debe establecer una fecha de finalización.');
-
-    const hoy = new Date().setHours(0, 0, 0, 0);
-    const fechaSeleccionada = new Date(fecha_finalizacion).setHours(0, 0, 0, 0);
-    if (fechaSeleccionada < hoy) return setError('La fecha de finalización no puede ser anterior a hoy.');
-
+  const handleAsignarSubmit = async (dataFinal) => {
     try {
       const token = localStorage.getItem('token');
 
-      // Payload ajustado para incluir supervisor_asignador_id
+      // Payload final incluye supervisor, comentarios con fecha, fecha_finalizacion
       const payload = {
         incidente_id: selectedIncidente.id,
-        responsable_id: Number(formData.responsable_id), // Responsable asignado
-        supervisor_asignador_id: auth.user.id,        // Supervisor logueado
-        comentarios: formData.comentarios,
-        fecha_finalizacion
+        responsable_id: Number(dataFinal.responsable_id),
+        supervisor_asignador_id: auth.user.id,
+        comentarios: dataFinal.comentarios,
+        fecha_finalizacion: dataFinal.fecha_finalizacion
       };
 
       await axios.post(`${API_BASE_URL}/asignaciones`, payload, {
@@ -138,10 +128,12 @@ const AdminTareas = ({ auth }) => {
     setError('');
   };
 
+  // 🔹 Formato de fecha legible: 6 de agosto del 2000
   const formatDate = (fecha) => {
     if (!fecha) return '-';
     const d = new Date(fecha);
-    return isNaN(d.getTime()) ? '-' : d.toLocaleDateString();
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
   const getUbicacionNombre = (ubicacion_id) =>
@@ -282,7 +274,31 @@ const AdminTareas = ({ auth }) => {
           <Modal.Header closeButton style={{ backgroundColor: "#00482B" }}>
             <Modal.Title style={{ color: "#FBE122" }}>Asignar Responsable</Modal.Title>
           </Modal.Header>
-          <Form onSubmit={handleAsignarSubmit}>
+
+          <Form
+            onSubmit={(e) => {
+              e.preventDefault();
+
+              if (!formData.responsable_id) return setError('Debe seleccionar un responsable.');
+              if (!formData.fecha_finalizacion) return setError('Debe establecer una fecha de finalización.');
+
+              const hoy = new Date().setHours(0,0,0,0);
+              const fechaSeleccionada = new Date(formData.fecha_finalizacion).setHours(0,0,0,0);
+              if (fechaSeleccionada < hoy) return setError('La fecha de finalización no puede ser anterior a hoy.');
+
+              // 🔹 Formatear fecha para comentario
+              const fechaLegible = formatDate(formData.fecha_finalizacion);
+
+              const comentarioConFecha = `${formData.comentarios || ""}  , La tarea se debe completar antes del ${fechaLegible}.`;
+
+              const dataFinal = {
+                ...formData,
+                comentarios: comentarioConFecha.trim()
+              };
+
+              handleAsignarSubmit(dataFinal);
+            }}
+          >
             <Modal.Body>
               {selectedIncidente && (
                 <>
@@ -314,13 +330,14 @@ const AdminTareas = ({ auth }) => {
                 <Form.Control
                   as="textarea"
                   rows={3}
+                  placeholder="Añade instrucciones o comentarios para el responsable..."
                   value={formData.comentarios}
                   onChange={(e) => setFormData({ ...formData, comentarios: e.target.value })}
                 />
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Fecha estimada de finalización *</Form.Label>
+                <Form.Label>Fecha de cierre *</Form.Label>
                 <Form.Control
                   type="date"
                   value={formData.fecha_finalizacion}
@@ -329,10 +346,16 @@ const AdminTareas = ({ auth }) => {
                 />
               </Form.Group>
             </Modal.Body>
+
             <Modal.Footer>
               <Button variant="secondary" onClick={closeModal}>Cancelar</Button>
               <Button
-                style={{ backgroundColor: "#FBE122", borderColor: "#FBE122", color: "#00482B", fontWeight: "bold" }}
+                style={{
+                  backgroundColor: "#FBE122",
+                  borderColor: "#FBE122",
+                  color: "#00482B",
+                  fontWeight: "bold",
+                }}
                 type="submit"
               >
                 Asignar Tarea

@@ -2,98 +2,239 @@ const pool = require('../db');
 const upload = require('../middleware/uploads'); // si usas multer
 const checkRole = require('../middleware/roles');
 
+// Crear reporte autenticado con notificación a rol = 2
 const crearReporte = async (req, res) => {
   try {
+    // 1️⃣ Verificar autenticación
     if (!req.user || !req.user.id) {
-      return res.status(401).json({ error: 'Usuario no autenticado' });
+      return res.status(401).json({ error: "Usuario no autenticado" });
     }
 
     const { titulo, descripcion, tipo, ubicacion_id, gravedad } = req.body;
     const solicitante_id = req.user.id;
     const fechaCreacion = new Date().toISOString();
 
+    // 2️⃣ Validar campos requeridos
     if (!titulo || !descripcion || !tipo || !ubicacion_id || !gravedad) {
-      return res.status(400).json({ error: 'Todos los campos marcados con * son requeridos' });
+      return res
+        .status(400)
+        .json({ error: "Todos los campos marcados con * son requeridos" });
     }
 
     const ubicacionIdNum = parseInt(ubicacion_id, 10);
-    if (isNaN(ubicacionIdNum)) return res.status(400).json({ error: 'ID de ubicación inválido' });
+    if (isNaN(ubicacionIdNum)) {
+      return res.status(400).json({ error: "ID de ubicación inválido" });
+    }
 
+    // 3️⃣ Obtener nombre del usuario solicitante
+    const usuarioResult = await pool.query(
+      `SELECT nombre FROM usuarios WHERE id = $1`,
+      [solicitante_id]
+    );
+
+    const nombreSolicitante =
+      usuarioResult.rows.length > 0
+        ? usuarioResult.rows[0].nombre
+        : "Usuario desconocido";
+
+    // 4️⃣ Insertar incidente
     const insertQuery = `
       INSERT INTO incidente
         (titulo, descripcion, tipo, ubicacion_id, fecha_creacion, estado, solicitante_id, gravedad)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`;
-    const valores = [titulo, descripcion, tipo, ubicacionIdNum, fechaCreacion, 'pendiente', solicitante_id, gravedad];
+    const valores = [
+      titulo,
+      descripcion,
+      tipo,
+      ubicacionIdNum,
+      fechaCreacion,
+      "pendiente",
+      solicitante_id,
+      gravedad,
+    ];
 
     const result = await pool.query(insertQuery, valores);
-    const reporteId = result.rows[0].id;
+    const incidente = result.rows[0];
+    const incidenteId = incidente.id;
 
-    // Guardar imágenes si existen
+    // 5️⃣ Guardar imágenes si existen
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         const url = file.filename || file.path;
         await pool.query(
-          'INSERT INTO imagenes_incidente (incidente_id, url, descripcion) VALUES ($1, $2, $3)',
-          [reporteId, url, `Imagen de ${titulo}`]
-        );
-      }
-    }
-
-    res.status(201).json({ message: 'Reporte creado con éxito', reporte: result.rows[0] });
-
-  } catch (err) {
-    console.error('Error al crear reporte:', err);
-    res.status(500).json({ error: 'Error al crear reporte' });
-  }
-};
-
-module.exports = { crearReporte };
-
-
-// Crear reporte como invitado
-const crearReporteInvitado = async (req, res) => {
-  try {
-    const { titulo, descripcion, tipo, ubicacion_id, gravedad } = req.body;
-
-    if (!titulo || !descripcion || !tipo || !ubicacion_id || !gravedad) {
-      return res.status(400).json({ error: 'Todos los campos marcados con * son requeridos' });
-    }
-
-    const ubicacionIdNum = parseInt(ubicacion_id, 10);
-    if (isNaN(ubicacionIdNum)) return res.status(400).json({ error: 'ID de ubicación inválido' });
-
-    const fechaCreacion = new Date().toISOString();
-
-    const insertQuery = `
-      INSERT INTO incidente
-        (titulo, descripcion, tipo, ubicacion_id, fecha_creacion, estado, solicitante_id, gravedad)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *`;
-    const valores = [titulo, descripcion, tipo, ubicacionIdNum, fechaCreacion, 'pendiente', 1, gravedad];
-
-    const result = await pool.query(insertQuery, valores);
-    const incidenteId = result.rows[0].id;
-
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const url = file.filename || file.path;
-        await pool.query(
-          'INSERT INTO imagenes_incidente (incidente_id, url, descripcion) VALUES ($1, $2, $3)',
+          "INSERT INTO imagenes_incidente (incidente_id, url, descripcion) VALUES ($1, $2, $3)",
           [incidenteId, url, `Imagen de ${titulo}`]
         );
       }
     }
 
+    // 6️⃣ Obtener todos los usuarios con rol_id = 2 (supervisores)
+    const supervisores = await pool.query(
+      `SELECT id, nombre FROM usuarios WHERE rol_id = 2`
+    );
+
+    // 7️⃣ Crear notificaciones
+    const notificacionQuery = `
+      INSERT INTO notificaciones (usuario_id, titulo, mensaje, tipo, link, fecha_creacion, leida)
+      VALUES ($1, $2, $3, $4, $5, NOW(), FALSE)
+    `;
+
+    const tituloNotif = "Nuevo incidente reportado";
+    const mensajeNotif = `El usuario ${nombreSolicitante} ha reportado un nuevo incidente: "${titulo}".`;
+    const tipoNotif = "incidente_nuevo";
+    const linkNotif = `/incidentes/${incidenteId}`;
+
+    // Socket.IO
+    const io = req.app.get("io");
+
+    // 8️⃣ Insertar notificaciones y emitir en tiempo real
+    for (const supervisor of supervisores.rows) {
+      await pool.query(notificacionQuery, [
+        supervisor.id,
+        tituloNotif,
+        mensajeNotif,
+        tipoNotif,
+        linkNotif,
+      ]);
+
+      if (io) {
+        io.to(`usuario_${supervisor.id}`).emit("nueva_notificacion", {
+          usuario_id: supervisor.id,
+          titulo: tituloNotif,
+          mensaje: mensajeNotif,
+          tipo: tipoNotif,
+          link: linkNotif,
+          fecha_creacion: new Date(),
+          leida: false,
+        });
+      }
+    }
+
+    // 9️⃣ Responder al cliente
     res.status(201).json({
-      message: 'Incidente reportado por invitado (solicitante_id = 1)',
-      incidente: result.rows[0]
+      message:
+        "✅ Reporte creado con éxito y notificación enviada a usuarios con rol = 2",
+      incidente,
+      notificados: supervisores.rows.length,
     });
   } catch (err) {
-    console.error('Error al reportar incidente invitado:', err);
-    res.status(500).json({ error: err.message || 'Error al reportar incidente' });
+    console.error("❌ Error al crear reporte:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Error al crear reporte" });
   }
 };
+
+
+
+// Crear reporte como invitado con notificación a supervisores (rol_id = 2)
+const crearReporteInvitado = async (req, res) => {
+  try {
+    const { titulo, descripcion, tipo, ubicacion_id, gravedad } = req.body;
+
+    // 1️⃣ Validaciones básicas
+    if (!titulo || !descripcion || !tipo || !ubicacion_id || !gravedad) {
+      return res
+        .status(400)
+        .json({ error: "Todos los campos marcados con * son requeridos" });
+    }
+
+    const ubicacionIdNum = parseInt(ubicacion_id, 10);
+    if (isNaN(ubicacionIdNum)) {
+      return res.status(400).json({ error: "ID de ubicación inválido" });
+    }
+
+    const fechaCreacion = new Date().toISOString();
+
+    // 2️⃣ Insertar el incidente (solicitante_id = 1 representa invitado)
+    const insertQuery = `
+      INSERT INTO incidente
+        (titulo, descripcion, tipo, ubicacion_id, fecha_creacion, estado, solicitante_id, gravedad)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *`;
+    const valores = [
+      titulo,
+      descripcion,
+      tipo,
+      ubicacionIdNum,
+      fechaCreacion,
+      "pendiente",
+      1, // invitado
+      gravedad,
+    ];
+
+    const result = await pool.query(insertQuery, valores);
+    const incidente = result.rows[0];
+    const incidenteId = incidente.id;
+
+    // 3️⃣ Guardar imágenes si existen
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const url = file.filename || file.path;
+        await pool.query(
+          "INSERT INTO imagenes_incidente (incidente_id, url, descripcion) VALUES ($1, $2, $3)",
+          [incidenteId, url, `Imagen de ${titulo}`]
+        );
+      }
+    }
+
+    // 4️⃣ Obtener todos los usuarios con rol = 2 (supervisores)
+    const supervisores = await pool.query(
+      `SELECT id, nombre FROM usuarios WHERE rol_id = 2`
+    );
+
+    // 5️⃣ Crear notificaciones para cada supervisor
+    const notificacionQuery = `
+      INSERT INTO notificaciones (usuario_id, titulo, mensaje, tipo, link, fecha_creacion, leida)
+      VALUES ($1, $2, $3, $4, $5, NOW(), FALSE)
+    `;
+
+    const tituloNotif = "Nuevo incidente reportado";
+    const mensajeNotif = `Un invitado ha reportado un nuevo incidente: "${titulo}".`;
+    const tipoNotif = "incidente_nuevo";
+    const linkNotif = `/incidentes/${incidenteId}`;
+
+    // Insertar notificaciones y emitir en tiempo real
+    const io = req.app.get("io"); // Socket.IO desde app.js
+
+    for (const supervisor of supervisores.rows) {
+      await pool.query(notificacionQuery, [
+        supervisor.id,
+        tituloNotif,
+        mensajeNotif,
+        tipoNotif,
+        linkNotif,
+      ]);
+
+      // Emitir evento en tiempo real si Socket.IO está disponible
+      if (io) {
+        io.to(`usuario_${supervisor.id}`).emit("nueva_notificacion", {
+          usuario_id: supervisor.id,
+          titulo: tituloNotif,
+          mensaje: mensajeNotif,
+          tipo: tipoNotif,
+          link: linkNotif,
+          fecha_creacion: new Date(),
+          leida: false,
+        });
+      }
+    }
+
+    // 6️⃣ Respuesta al cliente
+    res.status(201).json({
+      message: "✅ Incidente reportado correctamente por invitado",
+      incidente,
+      notificados: supervisores.rows.length,
+    });
+  } catch (err) {
+    console.error("❌ Error al reportar incidente invitado:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Error al reportar incidente" });
+  }
+};
+
 
 // Obtener reporte por ID
 const obtenerReporte = async (req, res) => {

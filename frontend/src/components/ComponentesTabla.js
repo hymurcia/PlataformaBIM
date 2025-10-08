@@ -123,24 +123,33 @@ const TablaComponentes = () => {
   };
 
   // 🔹 Vida útil
-  const obtenerPorcentajeVida = (c) => {
-    const vidaUtil = c.vida_util_meses || 0;
-    const edad = c.edad_actual || 0;
-    if (!vidaUtil) return { color: 'bg-secondary', texto: 'Sin datos' };
+const obtenerPorcentajeVida = (c) => {
+  const vidaUtil = c.vida_util_meses || 0;
+  if (!c.fecha_instalacion || !vidaUtil) {
+    return { porcentaje: 0, color: 'secondary', texto: 'Sin datos' };
+  }
 
-    const porcentaje = Math.min((edad / vidaUtil) * 100, 100);
-    let color = "success";
-    let texto = "En buen estado";
-    if (porcentaje >= 100) {
-      color = "danger";
-      texto = "Revisión inmediata";
-    } else if (porcentaje >= 80) {
-      color = "warning";
-      texto = "Revisión próxima";
-    }
+  const fechaInstalacion = new Date(c.fecha_instalacion);
+  const hoy = new Date();
+  const mesesUsados = (hoy.getFullYear() - fechaInstalacion.getFullYear()) * 12
+    + (hoy.getMonth() - fechaInstalacion.getMonth());
 
-    return { porcentaje, color, texto };
-  };
+  const porcentaje = Math.min((mesesUsados / vidaUtil) * 100, 100);
+
+  let color = "success";
+  let texto = "En buen estado";
+  if (porcentaje >= 100) {
+    color = "danger";
+    texto = "Revisión inmediata";
+  } else if (porcentaje >= 80) {
+    color = "warning";
+    texto = "Revisión próxima";
+  }
+
+  return { porcentaje, color, texto };
+};
+
+
 
   // 🔹 Filtrar
   const componentesFiltrados = filtroUbicacion

@@ -8,26 +8,32 @@ const http = require("http");
 const socketIO = require("socket.io");
 const { setSocket } = require("./utils/notificar");
 
+// Inicialización de Express y servidor HTTP
 const app = express();
-const server = http.createServer(app); // Necesario para Socket.IO
+const server = http.createServer(app);
+
+// =========================
+// Socket.IO (Notificaciones en tiempo real)
+// =========================
 const io = socketIO(server, {
   cors: {
-    origin: "http://localhost:3000", // frontend React
+    origin: "http://localhost:3000", // URL del frontend React
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
 });
 
-const saltRounds = 10;
-
 // =========================
 // Middlewares
 // =========================
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 app.use(express.json());
 
-// Middleware para establecer UTF-8 en todas las respuestas
+// Archivos estáticos (uploads y pdfs)
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/pdfs", express.static(path.join(__dirname, "pdfs")));
+
+// Establecer codificación UTF-8 para todas las respuestas JSON
 app.use((req, res, next) => {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   next();
@@ -76,7 +82,7 @@ app.use("/informes", informesRoutes);
 app.use("/notificaciones", notificacionesRoutes);
 
 // =========================
-// Socket.IO para notificaciones
+// Socket.IO - Conexiones de usuarios
 // =========================
 io.on("connection", (socket) => {
   console.log("🟢 Usuario conectado:", socket.id);
@@ -92,14 +98,14 @@ io.on("connection", (socket) => {
   });
 });
 
-// 🔹 Inyectar socket en el módulo de notificaciones
+// Inyectar Socket.IO al módulo de notificaciones
 setSocket(io);
 
-// Exportar io por si lo necesitas en otro lugar
+// Hacer disponible el socket globalmente si se necesita
 app.set("io", io);
 
 // =========================
-// Start
+// Servidor en marcha
 // =========================
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

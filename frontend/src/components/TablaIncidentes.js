@@ -1,3 +1,4 @@
+// src/components/TablaIncidentes.js
 import React, { useState } from 'react';
 import { Table, Button, Badge, Modal, Form, Spinner, Alert } from 'react-bootstrap';
 import axios from 'axios';
@@ -22,6 +23,8 @@ const TablaIncidentes = ({ tareas, recargar }) => {
   const [loadingDetalle, setLoadingDetalle] = useState(false);
   const [errorDetalle, setErrorDetalle] = useState(null);
 
+  const API_BASE_URL = process.env.REACT_APP_API_URL || "http://192.168.56.1:5000";
+
   // ===== MODAL DE ACTUALIZAR =====
   const handleUpdateClick = (tarea) => {
     setSelectedTarea(tarea);
@@ -37,9 +40,15 @@ const TablaIncidentes = ({ tareas, recargar }) => {
     try {
       const token = localStorage.getItem('token');
       await axios.put(
-        `http://localhost:5000/asignaciones/${selectedTarea.tarea_id}`,
-        { estado: formData.estado, comentarios: formData.comentarios },
-        { headers: { Authorization: `Bearer ${token}` } }
+        `${API_BASE_URL}/asignaciones/${selectedTarea.tarea_id}`,
+        {
+          estado: formData.estado,
+          comentarios: formData.comentarios,
+          tipo: "incidente"
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
       );
       setShowModal(false);
       recargar();
@@ -51,42 +60,25 @@ const TablaIncidentes = ({ tareas, recargar }) => {
 
   // ===== MODAL DE DETALLES =====
   const handleDetalleClick = async (tarea) => {
-    setLoadingDetalle(true);
-    setErrorDetalle(null);
-    setDetalleIncidente(null);
-    setImagenes([]);
     setShowDetalle(true);
+    setErrorDetalle(null);
+    setPreviewImg(null);
+    setImagenes([]);
 
-    const tareaId = tarea.tarea_id;
-    if (!tareaId) {
-      setErrorDetalle('No se pudo determinar el ID de la asignación.');
-      setLoadingDetalle(false);
-      return;
-    }
+    // Usamos directamente los datos de la tarea (ya vienen del backend completo)
+    setDetalleIncidente(tarea);
 
     try {
       const token = localStorage.getItem('token');
-
-      // ✅ Pedimos detalle por asignación
-      const resDetalle = await axios.get(
-        `http://localhost:5000/incidentes/asignacion/${tareaId}`,
+      // Solo pedimos imágenes actualizadas
+      const resImagenes = await axios.get(
+        `${API_BASE_URL}/incidentes/${tarea.incidente_id}/imagenes`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      const detalle = resDetalle.data;
-      setDetalleIncidente(detalle);
-
-      // ✅ Pedimos imágenes con el ID del incidente real
-      if (detalle && detalle.id) {
-        const resImagenes = await axios.get(
-          `http://localhost:5000/incidentes/${detalle.id}/imagenes`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setImagenes(resImagenes.data || []);
-      }
+      setImagenes(resImagenes.data || []);
     } catch (err) {
-      console.error('❌ Error al obtener detalles del incidente:', err);
-      setErrorDetalle('No se pudieron cargar los detalles del incidente.');
+      console.error('⚠️ Error cargando imágenes:', err);
+      setImagenes([]);
     } finally {
       setLoadingDetalle(false);
     }
@@ -167,18 +159,14 @@ const TablaIncidentes = ({ tareas, recargar }) => {
             {selectedTarea && (
               <div className="mb-3">
                 <h5>Incidente #{selectedTarea.tarea_id}</h5>
-                <p>
-                  <strong>Título:</strong> {selectedTarea.titulo}
-                </p>
+                <p><strong>Título:</strong> {selectedTarea.titulo}</p>
               </div>
             )}
             <Form.Group className="mb-3">
               <Form.Label>Estado *</Form.Label>
               <Form.Select
                 value={formData.estado}
-                onChange={(e) =>
-                  setFormData({ ...formData, estado: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
                 required
               >
                 <option value="en_proceso">En proceso</option>
@@ -222,90 +210,31 @@ const TablaIncidentes = ({ tareas, recargar }) => {
             </div>
           )}
           {errorDetalle && <Alert variant="danger">{errorDetalle}</Alert>}
-          {!loadingDetalle && detalleIncidente && (
+          {detalleIncidente && (
             <>
               <Table bordered>
                 <tbody>
-                  <tr>
-                    <th>ID Incidente</th>
-                    <td>{detalleIncidente.id}</td>
+                  <tr><th>ID Incidente</th><td>{detalleIncidente.incidente_id}</td></tr>
+                  <tr><th>Título</th><td>{detalleIncidente.titulo}</td></tr>
+                  <tr><th>Descripción</th><td>{detalleIncidente.descripcion}</td></tr>
+                  <tr><th>Ubicación</th><td>{detalleIncidente.ubicacion_nombre}</td></tr>
+                  <tr><th>Gravedad</th><td>{detalleIncidente.gravedad || '-'}</td></tr>
+                  <tr><th>Responsable</th><td>{detalleIncidente.responsable_nombre}</td></tr>
+                  <tr><th>Supervisor</th><td>{detalleIncidente.supervisor_nombre}</td></tr>
+                  <tr><th>Estado</th>
+                    <td><Badge bg={getBadgeColor(detalleIncidente.estado_asignacion)}>{detalleIncidente.estado_asignacion}</Badge></td>
                   </tr>
-                  <tr>
-                    <th>Título</th>
-                    <td>{detalleIncidente.titulo}</td>
-                  </tr>
-                  <tr>
-                    <th>Descripción</th>
-                    <td>{detalleIncidente.descripcion || '-'}</td>
-                  </tr>
-                  <tr>
-                    <th>Tipo</th>
-                    <td>{detalleIncidente.tipo || '-'}</td>
-                  </tr>
-                  <tr>
-                    <th>Ubicación</th>
-                    <td>
-                      {detalleIncidente.ubicacion_nombre ||
-                        detalleIncidente.ubicacion_id ||
-                        '-'}
-                    </td>
-                  </tr>
-                  <tr>
-                    <th>Gravedad</th>
-                    <td>{detalleIncidente.gravedad || '-'}</td>
-                  </tr>
-                  <tr>
-                    <th>Estado</th>
-                    <td>
-                      <Badge
-                        bg={getBadgeColor(
-                          detalleIncidente.estado_asignacion ||
-                            detalleIncidente.estado
-                        )}
-                      >
-                        {detalleIncidente.estado_asignacion ||
-                          detalleIncidente.estado ||
-                          '-'}
-                      </Badge>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th>Responsable</th>
-                    <td>{detalleIncidente.responsable_nombre || '-'}</td>
-                  </tr>
-                  <tr>
-                    <th>Supervisor</th>
-                    <td>{detalleIncidente.supervisor_nombre || '-'}</td>
-                  </tr>
-                  <tr>
-                    <th>Fecha asignación</th>
-                    <td>
-                      {formatDate(
-                        detalleIncidente.fecha_asignacion ||
-                          detalleIncidente.fecha_creacion
-                      )}
-                    </td>
-                  </tr>
-                  <tr>
-                    <th>Fecha cierre</th>
-                    <td>{formatDate(detalleIncidente.fecha_cierre)}</td>
-                  </tr>
-                  <tr>
-                    <th>Acciones tomadas</th>
-                    <td>{detalleIncidente.acciones_tomadas || '-'}</td>
-                  </tr>
-                  <tr>
-                    <th>Comentarios</th>
-                    <td>{detalleIncidente.comentarios_asignacion || '-'}</td>
-                  </tr>
+                  <tr><th>Fecha asignación</th><td>{formatDate(detalleIncidente.fecha_asignacion)}</td></tr>
+                  <tr><th>Acciones tomadas</th><td>{detalleIncidente.acciones_tomadas || '-'}</td></tr>
+                  <tr><th>Comentarios</th><td>{detalleIncidente.comentarios_asignacion}</td></tr>
                 </tbody>
               </Table>
 
-              {/* Imágenes */}
+              {/* IMÁGENES */}
               {imagenes.length > 0 ? (
                 <div className="d-flex flex-wrap gap-3 mt-2">
                   {imagenes.map((img) => {
-                    const imgUrl = `http://localhost:5000/uploads/${img.url}`;
+                    const imgUrl = `${API_BASE_URL}/uploads/${img.url}`;
                     return (
                       <div key={img.id} className="text-center">
                         <img
@@ -322,9 +251,7 @@ const TablaIncidentes = ({ tareas, recargar }) => {
                           }
                         />
                         {img.descripcion && (
-                          <div className="small text-muted mt-1">
-                            {img.descripcion}
-                          </div>
+                          <div className="small text-muted mt-1">{img.descripcion}</div>
                         )}
                       </div>
                     );
@@ -334,9 +261,6 @@ const TablaIncidentes = ({ tareas, recargar }) => {
                 <p>No hay imágenes asociadas.</p>
               )}
             </>
-          )}
-          {!loadingDetalle && !detalleIncidente && !errorDetalle && (
-            <p>No se encontraron detalles.</p>
           )}
         </Modal.Body>
       </Modal>

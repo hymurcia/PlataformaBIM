@@ -1,6 +1,54 @@
 const pool = require('../db');
 
-// 📦 Controlador para actualizar inventario (sumar cantidad y recalcular costo promedio)
+
+//Controlador para obtener todo el inventario
+const obtenerInventario = async (req, res) => {
+  try {
+    // Hacemos un JOIN con items para traer el nombre y descripción
+    const query = `
+      SELECT 
+        i.id, 
+        i.item_id, 
+        i.cantidad, 
+        i.costo_unitario, 
+        i.ubicacion_actual, 
+        i.fecha_actualizacion,
+        it.nombre,
+        it.descripcion,
+        it.vida_util_meses
+      FROM inventario i
+      JOIN items it ON i.item_id = it.id
+      ORDER BY i.item_id ASC
+    `;
+
+    const result = await pool.query(query);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No hay items en inventario' });
+    }
+
+    // Formatear la respuesta
+    const inventario = result.rows.map(item => ({
+      id: item.id,
+      item_id: item.item_id,
+      nombre: item.nombre || "Sin nombre",
+      descripcion: item.descripcion || "",
+      cantidad: parseInt(item.cantidad, 10),
+      costo_unitario: parseFloat(item.costo_unitario).toFixed(2),
+      ubicacion_actual: item.ubicacion_actual || null,
+      fecha_actualizacion: item.fecha_actualizacion,
+      vida_util_meses: item.vida_util_meses || null
+    }));
+
+    res.json(inventario);
+  } catch (error) {
+    console.error('❌ Error obteniendo inventario:', error.message);
+    res.status(500).json({ error: 'Error obteniendo inventario' });
+  }
+};
+
+
+//Controlador para actualizar inventario (sumar cantidad y recalcular costo promedio)
 const actualizarInventario = async (req, res) => {
   const { item_id } = req.params;
   let { cantidad, costo_unitario, ubicacion_actual } = req.body;
@@ -71,5 +119,6 @@ const actualizarInventario = async (req, res) => {
 };
 
 module.exports = {
-  actualizarInventario
+  actualizarInventario,
+  obtenerInventario
 };

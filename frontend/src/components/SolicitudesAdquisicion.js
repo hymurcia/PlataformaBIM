@@ -1,3 +1,4 @@
+// src/components/SolicitudesAdquisicion.js
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {
@@ -36,7 +37,7 @@ const SolicitudesAdquisicion = () => {
     fetchUser();
   }, []);
 
-  // 🔹 Obtener usuario
+  // 🔹 Obtener usuario autenticado
   const fetchUser = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -53,7 +54,7 @@ const SolicitudesAdquisicion = () => {
     }
   };
 
-  // 🔹 Obtener solicitudes
+  // 🔹 Obtener solicitudes del usuario
   const fetchSolicitudes = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -95,11 +96,11 @@ const SolicitudesAdquisicion = () => {
 
       setFormData({ item_solicitado: "", cantidad: "", justificacion: "" });
       fetchSolicitudes();
-      setSuccessMsg("Solicitud creada correctamente.");
+      setSuccessMsg("✅ Solicitud creada correctamente.");
       handleCloseModal();
     } catch (error) {
       console.error("Error al crear solicitud:", error.response?.data || error);
-      setErrorMsg(error.response?.data?.error || "Error al crear solicitud");
+      setErrorMsg(error.response?.data?.error || "Error al crear la solicitud.");
     } finally {
       setSubmitting(false);
     }
@@ -114,26 +115,40 @@ const SolicitudesAdquisicion = () => {
   };
 
   // 🔹 Formatear fecha
-  const formatFecha = (fecha) => new Date(fecha).toLocaleDateString();
+  const formatFecha = (fecha) =>
+    new Date(fecha).toLocaleDateString("es-CO", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
 
-  // 🔹 Estado badge
-  const getEstadoVariant = (estado) => {
-    switch (estado) {
+  // 🔹 Estilo personalizado para los estados
+  const getEstadoEstilo = (estado) => {
+    if (!estado) return {};
+    const baseStyle = {
+      color: "white",
+      fontWeight: "bold",
+      padding: "6px 12px",
+      borderRadius: "8px",
+      textTransform: "capitalize",
+    };
+
+    switch (estado.toLowerCase()) {
       case "pendiente":
-        return "warning";
+        return { ...baseStyle, backgroundColor: "#f0ad4e" }; // Amarillo
       case "aprobado":
-        return "success";
+        return { ...baseStyle, backgroundColor: "#28a745" }; // Verde
       case "rechazado":
-        return "danger";
+        return { ...baseStyle, backgroundColor: "#dc3545" }; // Rojo
       default:
-        return "secondary";
+        return { ...baseStyle, backgroundColor: "#6c757d" }; // Gris
     }
   };
 
   if (loading)
     return (
-      <div className="d-flex justify-content-center align-items-center vh-100">
-        <Spinner animation="border" style={{ color: "#00482B" }} />
+      <div className="d-flex justify-content-center align-items-center vh-100 text-white bg-dark">
+        <Spinner animation="border" variant="light" />
         <span className="ms-3">Cargando solicitudes...</span>
       </div>
     );
@@ -148,10 +163,11 @@ const SolicitudesAdquisicion = () => {
         display: "flex",
         alignItems: "center",
         position: "relative",
-        paddingTop: "50px",
-        paddingBottom: "50px",
+        paddingTop: "60px",
+        paddingBottom: "60px",
       }}
     >
+      {/* Fondo oscuro translúcido */}
       <div
         style={{
           position: "absolute",
@@ -159,55 +175,69 @@ const SolicitudesAdquisicion = () => {
           left: 0,
           width: "100%",
           height: "100%",
-          backgroundColor: "rgba(0,0,0,0.35)",
+          backgroundColor: "rgba(0,0,0,0.45)",
           zIndex: 1,
         }}
       />
+
       <Container style={{ zIndex: 2 }}>
         <Row className="justify-content-center">
           <Col lg={10}>
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <h2 style={{ color: "#FBE122", fontWeight: "bold" }}>
-                Solicitudes de Adquisición
-              </h2>
-              <Button
-                style={{
-                  backgroundColor: "#FBE122",
-                  borderColor: "#FBE122",
-                  color: "#00482B",
-                  fontWeight: "bold",
-                }}
-                onClick={handleShowModal}
-              >
-                <i className="bi bi-plus-circle me-2"></i>
-                Nueva Solicitud
-              </Button>
-            </div>
-
-            {successMsg && <Alert variant="success">{successMsg}</Alert>}
-            {errorMsg && <Alert variant="danger">{errorMsg}</Alert>}
-
-            <Card className="shadow-lg" style={{ borderRadius: "15px" }}>
+            <Card
+              className="shadow-lg border-0"
+              style={{ borderRadius: "18px", overflow: "hidden" }}
+            >
               <Card.Header
+                className="d-flex justify-content-between align-items-center"
                 style={{
                   backgroundColor: "#00482B",
                   color: "#FBE122",
                   fontWeight: "bold",
+                  fontSize: "1.3rem",
                 }}
               >
-                Mis Solicitudes
+                Solicitudes de Adquisición
+                <Button
+                  onClick={handleShowModal}
+                  style={{
+                    backgroundColor: "#FBE122",
+                    borderColor: "#FBE122",
+                    color: "#00482B",
+                    fontWeight: "bold",
+                  }}
+                >
+                  <i className="bi bi-plus-circle me-2"></i>
+                  Nueva Solicitud
+                </Button>
               </Card.Header>
-              <Card.Body style={{ backgroundColor: "rgba(255,255,255,0.9)" }}>
+
+              <Card.Body style={{ backgroundColor: "rgba(255,255,255,0.95)" }}>
+                {successMsg && (
+                  <Alert variant="success" className="text-center fw-bold">
+                    {successMsg}
+                  </Alert>
+                )}
+                {errorMsg && (
+                  <Alert variant="danger" className="text-center fw-bold">
+                    {errorMsg}
+                  </Alert>
+                )}
+
                 {solicitudes.length === 0 ? (
-                  <p className="text-muted text-center">
+                  <p className="text-muted text-center mb-0">
                     No hay solicitudes registradas.
                   </p>
                 ) : (
-                  <div className="table-responsive">
-                    <table className="table table-hover">
-                      <thead style={{ backgroundColor: "#00482B", color: "#FBE122" }}>
+                  <div className="table-responsive mt-3">
+                    <table className="table table-hover align-middle">
+                      <thead
+                        style={{
+                          backgroundColor: "#00482B",
+                          color: "#FBE122",
+                        }}
+                      >
                         <tr>
-                          <th>Item</th>
+                          <th>Item Solicitado</th>
                           <th>Cantidad</th>
                           <th>Estado</th>
                           <th>Fecha</th>
@@ -217,18 +247,23 @@ const SolicitudesAdquisicion = () => {
                       <tbody>
                         {solicitudes.map((s) => (
                           <tr key={s.id}>
-                            <td>{s.item_solicitado}</td>
+                            <td className="fw-bold">{s.item_solicitado}</td>
                             <td>{s.cantidad}</td>
                             <td>
-                              <Badge
-                                bg={getEstadoVariant(s.estado_solicitud)}
-                                style={{ textTransform: "capitalize" }}
-                              >
+                              <span style={getEstadoEstilo(s.estado_solicitud)}>
                                 {s.estado_solicitud}
-                              </Badge>
+                              </span>
                             </td>
                             <td>{formatFecha(s.fecha_solicitud)}</td>
-                            <td>{s.justificacion || "Sin justificación"}</td>
+                            <td>
+                              {s.justificacion ? (
+                                <span>{s.justificacion}</span>
+                              ) : (
+                                <em className="text-muted">
+                                  Sin justificación
+                                </em>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -240,46 +275,75 @@ const SolicitudesAdquisicion = () => {
           </Col>
         </Row>
 
-        <Modal show={showModal} onHide={handleCloseModal} centered>
-          <Modal.Header closeButton style={{ backgroundColor: "#00482B" }}>
-            <Modal.Title style={{ color: "#FBE122" }}>Nueva Solicitud</Modal.Title>
+        {/* 🔹 Modal de nueva solicitud */}
+        <Modal
+          show={showModal}
+          onHide={handleCloseModal}
+          centered
+          backdrop="static"
+        >
+          <Modal.Header
+            closeButton
+            style={{
+              backgroundColor: "#00482B",
+              color: "#FBE122",
+            }}
+          >
+            <Modal.Title>Nueva Solicitud</Modal.Title>
           </Modal.Header>
           <Form onSubmit={handleCreate}>
-            <Modal.Body>
+            <Modal.Body style={{ backgroundColor: "#f8f9fa" }}>
               <Form.Group className="mb-3">
                 <Form.Label>Item *</Form.Label>
                 <Form.Control
                   type="text"
+                  placeholder="Ej: Computador portátil"
                   value={formData.item_solicitado}
                   onChange={(e) =>
-                    setFormData({ ...formData, item_solicitado: e.target.value })
+                    setFormData({
+                      ...formData,
+                      item_solicitado: e.target.value,
+                    })
                   }
+                  required
                 />
               </Form.Group>
+
               <Form.Group className="mb-3">
                 <Form.Label>Cantidad *</Form.Label>
                 <Form.Control
                   type="number"
                   min="1"
+                  placeholder="Ej: 5"
                   value={formData.cantidad}
                   onChange={(e) =>
-                    setFormData({ ...formData, cantidad: e.target.value })
+                    setFormData({
+                      ...formData,
+                      cantidad: e.target.value,
+                    })
                   }
+                  required
                 />
               </Form.Group>
+
               <Form.Group>
                 <Form.Label>Justificación</Form.Label>
                 <Form.Control
                   as="textarea"
                   rows={3}
+                  placeholder="Describe brevemente la necesidad de este recurso..."
                   value={formData.justificacion}
                   onChange={(e) =>
-                    setFormData({ ...formData, justificacion: e.target.value })
+                    setFormData({
+                      ...formData,
+                      justificacion: e.target.value,
+                    })
                   }
                 />
               </Form.Group>
+
               {errorMsg && (
-                <Alert variant="danger" className="mt-2">
+                <Alert variant="danger" className="mt-3">
                   {errorMsg}
                 </Alert>
               )}

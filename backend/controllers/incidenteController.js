@@ -228,26 +228,70 @@ const obtenerDetalleIncidente = async (req, res) => {
   try {
     const { id: asignacionId } = req.params;
 
+    // 🔹 Validar ID
     if (!asignacionId || isNaN(asignacionId)) {
       return res.status(400).json({ error: "ID de asignación no válido" });
     }
 
+    // 🔹 Consulta con joins y alias claros
     const query = `
-      SELECT i.*
+      SELECT 
+        i.id,
+        i.titulo,
+        i.descripcion,
+        i.tipo,
+        i.gravedad,
+        i.estado,
+        i.fecha_creacion,
+        i.fecha_asignacion,
+        i.fecha_cierre, -- 👈 mantenemos nombre consistente
+        i.acciones_tomadas,
+        u1.nombre AS solicitante,
+        u2.nombre AS supervisor_asignador,
+        u3.nombre AS operario,
+        ub.nombre AS ubicacion
       FROM incidente i
       INNER JOIN asignaciones a ON i.id = a.incidente_id
+      LEFT JOIN usuarios u1 ON i.solicitante_id = u1.id
+      LEFT JOIN usuarios u2 ON i.supervisor_asignador_id = u2.id
+      LEFT JOIN usuarios u3 ON i.operario_id = u3.id
+      LEFT JOIN ubicaciones ub ON i.ubicacion_id = ub.id
       WHERE a.id = $1
     `;
 
     const { rows } = await pool.query(query, [Number(asignacionId)]);
 
     if (rows.length === 0) {
-      return res
-        .status(404)
-        .json({ error: "Detalle del incidente no encontrado" });
+      return res.status(404).json({ error: "Detalle del incidente no encontrado" });
     }
 
-    res.json(rows[0]);
+    const incidente = rows[0];
+
+    // 🔹 Asegurar formato ISO para las fechas
+    const parseFecha = (f) => (f ? new Date(f).toISOString() : null);
+
+    incidente.fecha_creacion = parseFecha(incidente.fecha_creacion);
+    incidente.fecha_asignacion = parseFecha(incidente.fecha_asignacion);
+    incidente.fecha_cierre = parseFecha(incidente.fecha_cierre);
+
+    // 🔹 Enviar respuesta limpia
+    res.status(200).json({
+      id: incidente.id,
+      titulo: incidente.titulo,
+      descripcion: incidente.descripcion,
+      tipo: incidente.tipo,
+      gravedad: incidente.gravedad,
+      estado: incidente.estado,
+      fecha_creacion: incidente.fecha_creacion,
+      fecha_asignacion: incidente.fecha_asignacion,
+      fecha_cierre: incidente.fecha_cierre,
+      acciones_tomadas: incidente.acciones_tomadas,
+      solicitante: incidente.solicitante,
+      supervisor_asignador: incidente.supervisor_asignador,
+      operario: incidente.operario,
+      ubicacion: incidente.ubicacion,
+    });
+
   } catch (err) {
     console.error("❌ Error en obtenerDetalleIncidente:", err);
     res.status(500).json({
@@ -256,6 +300,7 @@ const obtenerDetalleIncidente = async (req, res) => {
     });
   }
 };
+
 
 // =========================
 // Cambiar estado de incidente
