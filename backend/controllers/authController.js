@@ -65,6 +65,7 @@ const loginUsuario = async (req, res) => {
       return res.status(400).json({ error: 'Email y contraseña requeridos' });
     }
 
+    // Consultar usuario
     const { rows } = await pool.query(
       `SELECT u.id, u.nombre, u.apellido, u.telefono, u.email, u.password, u.rol_id, r.nombre AS rol_nombre 
        FROM usuarios u
@@ -76,15 +77,24 @@ const loginUsuario = async (req, res) => {
     const user = rows[0];
     if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
 
+    // Validar contraseña
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) return res.status(401).json({ error: 'Credenciales inválidas' });
 
+    // Generar token
     const token = generateToken({
       id: user.id,
       email: user.email,
       rol_id: user.rol_id
     });
 
+    // // Log de ingreso exitoso
+    // await pool.query(
+    //   `INSERT INTO logs (usuario_id, accion) VALUES ($1, $2)`,
+    //   [user.id, 'Ingreso exitoso al sistema']
+    // );
+
+    // Retornar datos sin la contraseña
     const { password: _, ...userWithoutPassword } = user;
 
     res.json({

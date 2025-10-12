@@ -59,6 +59,7 @@ const inventarioRoutes = require("./routes/inventario");
 const itemRoutes = require("./routes/item");
 const informesRoutes = require("./routes/informes");
 const notificacionesRoutes = require("./routes/notificaciones");
+const logsRoutes = require('./routes/logs');
 
 // =========================
 // Usar rutas
@@ -80,6 +81,7 @@ app.use("/inventario", inventarioRoutes);
 app.use("/items", itemRoutes);
 app.use("/informes", informesRoutes);
 app.use("/notificaciones", notificacionesRoutes);
+app.use('/logs', logsRoutes);
 
 // =========================
 // Socket.IO - Conexiones de usuarios

@@ -24,8 +24,7 @@ import CrudUsuarios from './components/CrudUsuarios';
 import Notificaciones from './components/Notificaciones';
 import PanelInformes from './components/PanelInformes';
 import PanelSolicitudes from './components/GestionSolicitudes';
-
-
+import LogsUsuarios from './components/LogsUsuarios';
 
 import logoHorizontalBlanco from './assets/IMAGOTIPO HORIZONTAL BLANCO.png';
 import escudoBlanco from './assets/ESCUDO BLANCO.png';
@@ -80,10 +79,10 @@ function App() {
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           {/* Botón del escudo que redirecciona a la página de inicio */}
           <Link to="/">
-            <img 
-              src={escudoBlanco} 
-              alt="Escudo de la Universidad de Cundinamarca" 
-              style={{ height: '40px', marginRight: '10px' }} 
+            <img
+              src={escudoBlanco}
+              alt="Escudo de la Universidad de Cundinamarca"
+              style={{ height: '40px', marginRight: '10px' }}
             />
           </Link>
           {!auth.isAuthenticated ? (
@@ -377,11 +376,11 @@ function App() {
         <Route
           path="/informes"
           element={
-            <PrivateRoute roles={[1,2]} auth={auth}>
+            <PrivateRoute roles={[1, 2]} auth={auth}>
               <PanelInformes />
             </PrivateRoute>
           }
-          
+
         />
         <Route
           path="/Gsolicitudes"
@@ -390,9 +389,20 @@ function App() {
               <PanelSolicitudes />
             </PrivateRoute>
           }
-          
+
         />
       </Routes>
+      <Routes>
+        {/* otras rutas */}
+
+        {/*
+        <Route 
+          path="/logs" 
+          element={<LogsUsuarios />} 
+        />
+        */}
+      </Routes>
+
       {/* <Footer /> */}
     </Router>
   );
@@ -554,9 +564,9 @@ function Home({ auth }) {
         )}
       </div>
     </div>
-    
+
   );
 }
-            
+
 
 export default App;

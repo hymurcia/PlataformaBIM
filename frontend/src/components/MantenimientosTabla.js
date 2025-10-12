@@ -153,23 +153,15 @@ const MantenimientosTable = () => {
 
   // ================= Validación =================
   const validarMantenimiento = () => {
-    if (!form.componente_id && form.ubicacion_id) {
-      const existe = mantenimientos.some(m =>
-        !m.componente_id &&
-        m.ubicacion_id === parseInt(form.ubicacion_id) &&
-        m.nombre === form.nombre &&
-        m.frecuencia === form.frecuencia
-      );
-      if (existe) {
-        setFormError("⚠️ Ya existe un mantenimiento con ese nombre y frecuencia en esta ubicación");
-        return false;
-      }
+    // Todos los campos obligatorios excepto componente
+    if (!form.nombre || !form.descripcion || !form.frecuencia || !form.fecha_programada || !form.operario_id || !form.ubicacion_id) {
+      setFormError("⚠️ Debes llenar todos los campos excepto componente");
+      return false;
     }
 
+    // Validación adicional si hay componente
     if (form.componente_id) {
-      const existe = mantenimientos.some(m =>
-        m.componente_id === parseInt(form.componente_id)
-      );
+      const existe = mantenimientos.some(m => m.componente_id === parseInt(form.componente_id));
       if (existe) {
         setFormError("⚠️ Este componente ya tiene un mantenimiento asignado");
         return false;
@@ -190,11 +182,6 @@ const MantenimientosTable = () => {
     e.preventDefault();
     setFormError("");
     setSuccessMessage("");
-
-    if (!form.componente_id && !form.ubicacion_id) {
-      setFormError("Debes seleccionar un componente o una ubicación");
-      return;
-    }
 
     if (!validarMantenimiento()) return;
 
@@ -255,7 +242,6 @@ const MantenimientosTable = () => {
   // ================= Ordenar mantenimientos =================
   const mantenimientosOrdenados = [...mantenimientos]
     .filter(m => {
-      // Excluir mantenimientos de componentes en baja
       if (!m.componente_id) return true;
       const comp = componentes.find(c => c.id === m.componente_id);
       return comp && comp.estado !== "baja";
@@ -301,7 +287,7 @@ const MantenimientosTable = () => {
                     <Form.Control type="text" placeholder="Nombre" name="nombre" value={form.nombre} onChange={handleChange} required />
                   </div>
                   <div className="col-md-3">
-                    <Form.Control type="text" placeholder="Descripción" name="descripcion" value={form.descripcion} onChange={handleChange} />
+                    <Form.Control type="text" placeholder="Descripción" name="descripcion" value={form.descripcion} onChange={handleChange} required />
                   </div>
                   <div className="col-md-2">
                     <Form.Select name="frecuencia" value={form.frecuencia} onChange={handleChange} required>
@@ -315,23 +301,23 @@ const MantenimientosTable = () => {
                     </Form.Select>
                   </div>
                   <div className="col-md-2">
-                    <Form.Control type="date" name="fecha_programada" value={form.fecha_programada} onChange={handleChange} />
+                    <Form.Control type="date" name="fecha_programada" value={form.fecha_programada} onChange={handleChange} required />
                   </div>
                   <div className="col-md-2">
-                    <Form.Control type="number" placeholder="Días" name="dias" value={form.dias} onChange={handleChange} />
+                    <Form.Control type="number" placeholder="Días" name="dias" value={form.dias} onChange={handleChange} required />
                   </div>
                 </div>
 
                 <div className="row g-2 mb-2">
                   <div className="col-md-3">
-                    <Form.Select name="ubicacion_id" value={form.ubicacion_id} onChange={handleChange}>
+                    <Form.Select name="ubicacion_id" value={form.ubicacion_id} onChange={handleChange} required>
                       <option value="">Selecciona ubicación</option>
                       {ubicaciones.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
                     </Form.Select>
                   </div>
                   <div className="col-md-3">
                     <Form.Select name="componente_id" value={form.componente_id} onChange={handleChange}>
-                      <option value="">Selecciona componente (activos sin mantenimiento)</option>
+                      <option value="">Selecciona componente (opcional)</option>
                       {filteredComponentes.map(c => (
                         <option key={c.id} value={c.id}>{c.nombre} - {c.numero_serie}</option>
                       ))}
@@ -339,13 +325,13 @@ const MantenimientosTable = () => {
                     <small className="text-muted">Solo componentes activos sin mantenimiento asignado</small>
                   </div>
                   <div className="col-md-3">
-                    <Form.Select name="operario_id" value={form.operario_id} onChange={handleChange}>
+                    <Form.Select name="operario_id" value={form.operario_id} onChange={handleChange} required>
                       <option value="">Selecciona responsable</option>
                       {responsables.map(r => <option key={r.id} value={r.id}>{r.nombre} {r.apellido}</option>)}
                     </Form.Select>
                   </div>
                   <div className="col-md-3">
-                    <Form.Control type="text" placeholder="Comentarios" name="comentarios" value={form.comentarios} onChange={handleChange} />
+                    <Form.Control type="text" placeholder="Comentarios" name="comentarios" value={form.comentarios} onChange={handleChange} required />
                   </div>
                 </div>
 

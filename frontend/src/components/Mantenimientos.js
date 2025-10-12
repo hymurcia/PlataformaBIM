@@ -468,7 +468,7 @@ const Mantenimientos = () => {
         <Modal.Footer><Button variant="secondary" onClick={() => setShowModalView(false)}>Cerrar</Button></Modal.Footer>
       </Modal>
 
-      {/* Modal Editar */}
+       {/* Modal Editar */}
       <Modal show={showModalEdit} onHide={() => setShowModalEdit(false)} centered size="lg">
         <Modal.Header closeButton style={{ backgroundColor: "#00482B", color: "#fff" }}>
           <Modal.Title>✏️ Editar Mantenimiento</Modal.Title>
@@ -480,29 +480,14 @@ const Mantenimientos = () => {
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Nombre</Form.Label>
-                    <Form.Control
-                      value={editData.nombre}
-                      onChange={(e) =>
-                        setEditData({ ...editData, nombre: e.target.value })
-                      }
-                    />
+                    <Form.Control value={editData.nombre} onChange={(e) => setEditData({ ...editData, nombre: e.target.value })} />
                   </Form.Group>
                 </Col>
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Frecuencia</Form.Label>
-                    <Form.Select
-                      value={editData.frecuencia}
-                      onChange={(e) =>
-                        setEditData({
-                          ...editData,
-                          frecuencia: e.target.value,
-                        })
-                      }
-                    >
-                      {Object.keys(frecuenciaColores).map((f) => (
-                        <option key={f}>{f}</option>
-                      ))}
+                    <Form.Select value={editData.frecuencia} onChange={(e) => setEditData({ ...editData, frecuencia: e.target.value })}>
+                      {Object.keys(frecuenciaColores).map((f) => <option key={f}>{f}</option>)}
                     </Form.Select>
                   </Form.Group>
                 </Col>
@@ -512,12 +497,7 @@ const Mantenimientos = () => {
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Estado</Form.Label>
-                    <Form.Select
-                      value={editData.estado}
-                      onChange={(e) =>
-                        setEditData({ ...editData, estado: e.target.value })
-                      }
-                    >
+                    <Form.Select value={editData.estado} onChange={(e) => setEditData({ ...editData, estado: e.target.value })}>
                       <option value="pendiente">Pendiente</option>
                       <option value="en_progreso">En progreso</option>
                       <option value="completado">Completado</option>
@@ -528,46 +508,36 @@ const Mantenimientos = () => {
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Fecha Programada</Form.Label>
-                    <Form.Control
-                      type="date"
-                      value={editData.fecha_programada || ""}
-                      onChange={(e) =>
-                        setEditData({
-                          ...editData,
-                          fecha_programada: e.target.value,
-                        })
-                      }
-                    />
+                    <Form.Control type="date" value={editData.fecha_programada || ""} onChange={(e) => setEditData({ ...editData, fecha_programada: e.target.value })} />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Row className="g-2">
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Responsable</Form.Label>
+                    <Form.Select value={editData.operario_id || ""} onChange={(e) => setEditData({ ...editData, operario_id: Number(e.target.value) })}>
+                      <option value="">Seleccione responsable</option>
+                      {responsables.map((r) => <option key={r.id} value={r.id}>{r.nombre} {r.apellido}</option>)}
+                    </Form.Select>
                   </Form.Group>
                 </Col>
               </Row>
 
               <Form.Group>
                 <Form.Label>Descripción</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  value={editData.descripcion || ""}
-                  onChange={(e) =>
-                    setEditData({
-                      ...editData,
-                      descripcion: e.target.value,
-                    })
-                  }
-                />
+                <Form.Control as="textarea" rows={3} value={editData.descripcion || ""} onChange={(e) => setEditData({ ...editData, descripcion: e.target.value })} />
               </Form.Group>
             </Form>
           </Modal.Body>
         )}
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModalEdit(false)}>
-            Cancelar
-          </Button>
-          <Button variant="primary" onClick={guardarEdicion}>
-            Guardar cambios
-          </Button>
+          <Button variant="secondary" onClick={() => setShowModalEdit(false)}>Cancelar</Button>
+          <Button variant="primary" onClick={guardarEdicion}>Guardar cambios</Button>
         </Modal.Footer>
       </Modal>
+
 
       {/* Modal Reprogramar */}
       <Modal

@@ -118,25 +118,27 @@ const obtenerMantenimientoById = async (req, res) => {
 // Crear un mantenimiento
 // ==========================
 const crearMantenimiento = async (req, res) => {
-  const { 
-    nombre, 
-    descripcion, 
-    frecuencia, 
-    fecha_programada, 
-    operario_id, 
-    componente_id, 
-    ubicacion_id, 
+  const {
+    nombre,
+    descripcion,
+    frecuencia,
+    fecha_programada,
+    operario_id,
+    componente_id,
+    ubicacion_id,
     dias,
-    comentarios 
+    comentarios
   } = req.body;
 
   try {
+    // ✅ Validación: al menos componente o ubicación
     if (!componente_id && !ubicacion_id) {
-      return res.status(400).json({ 
-        error: 'Debe especificar un componente o una ubicación' 
+      return res.status(400).json({
+        error: 'Debe especificar un componente o una ubicación'
       });
     }
 
+    // 🔄 Crear el mantenimiento
     const result = await pool.query(
       `INSERT INTO mantenimientos 
         (nombre, descripcion, frecuencia, fecha_programada, 
@@ -144,49 +146,62 @@ const crearMantenimiento = async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
-        nombre, 
-        descripcion, 
-        frecuencia, 
-        fecha_programada || null, 
-        operario_id || null, 
-        componente_id || null, 
+        nombre,
+        descripcion,
+        frecuencia,
+        fecha_programada || null,
+        operario_id || null,
+        componente_id || null,
         ubicacion_id || null,
         dias || null,
         comentarios || null
       ]
     );
-    
-    res.status(201).json(result.rows[0]);
+
+    const mantenimiento = result.rows[0];
+
+    // 🔔 Notificación al responsable si existe
+    if (operario_id) {
+      await notificar({
+        usuario_id: operario_id,
+        titulo: "Nuevo mantenimiento asignado",
+        mensaje: `Se te ha asignado el mantenimiento "${nombre}" programado para ${fecha_programada || 'sin fecha'}`,
+        tipo: "alerta",
+        link: `/mantenimientos/${mantenimiento.id}`,
+      });
+    }
+
+    res.status(201).json(mantenimiento);
   } catch (error) {
     console.error('Error al crear mantenimiento:', error.message);
     res.status(500).json({ error: 'Error al crear mantenimiento' });
   }
 };
 
+
 // ==========================
 // Actualizar un mantenimiento
 // ==========================
 const actualizarMantenimiento = async (req, res) => {
   const { id } = req.params;
-  const { 
-    nombre, 
-    descripcion, 
-    frecuencia, 
-    fecha_programada, 
-    operario_id, 
-    componente_id, 
-    ubicacion_id, 
+  const {
+    nombre,
+    descripcion,
+    frecuencia,
+    fecha_programada,
+    operario_id,
+    componente_id,
+    ubicacion_id,
     dias,
-    comentarios 
+    comentarios
   } = req.body;
 
   try {
     if (!componente_id && !ubicacion_id) {
-      return res.status(400).json({ 
-        error: 'Debe especificar un componente o una ubicación' 
+      return res.status(400).json({
+        error: 'Debe especificar un componente o una ubicación'
       });
     }
-
     const result = await pool.query(
       `UPDATE mantenimientos 
        SET nombre = $1,
@@ -201,12 +216,12 @@ const actualizarMantenimiento = async (req, res) => {
        WHERE id = $10
        RETURNING *`,
       [
-        nombre, 
-        descripcion, 
-        frecuencia, 
-        fecha_programada || null, 
-        operario_id || null, 
-        componente_id || null, 
+        nombre,
+        descripcion,
+        frecuencia,
+        fecha_programada || null,
+        operario_id || null,
+        componente_id || null,
         ubicacion_id || null,
         dias || null,
         comentarios || null,
@@ -233,6 +248,7 @@ const actualizarMantenimientoEstado = async (req, res) => {
   const { estado, comentarios } = req.body;
 
   try {
+    // 1️⃣ Obtener el mantenimiento
     const mantenimientoResult = await pool.query(
       `SELECT * FROM mantenimientos WHERE id = $1`,
       [id]
@@ -246,13 +262,16 @@ const actualizarMantenimientoEstado = async (req, res) => {
     let fechaUltimaEjecucion = mantenimiento.fecha_ultima_ejecucion;
     let fechaProgramada = mantenimiento.fecha_programada;
 
+    // 2️⃣ Si el estado es "completado", actualizar fechas
     if (estado && estado.toLowerCase() === "completado") {
       const ahora = new Date();
       fechaUltimaEjecucion = ahora;
 
       if (mantenimiento.frecuencia) {
+        const frecuencia = mantenimiento.frecuencia.toLowerCase().trim();
         fechaProgramada = new Date(ahora);
-        switch (mantenimiento.frecuencia.toLowerCase()) {
+
+        switch (frecuencia) {
           case "diario":
             fechaProgramada.setDate(fechaProgramada.getDate() + 1);
             break;
@@ -265,6 +284,9 @@ const actualizarMantenimientoEstado = async (req, res) => {
           case "trimestral":
             fechaProgramada.setMonth(fechaProgramada.getMonth() + 3);
             break;
+          case "semestral":
+            fechaProgramada.setMonth(fechaProgramada.getMonth() + 6);
+            break;
           case "anual":
             fechaProgramada.setFullYear(fechaProgramada.getFullYear() + 1);
             break;
@@ -273,6 +295,15 @@ const actualizarMantenimientoEstado = async (req, res) => {
         }
       }
 
+      console.log("🛠️ DEBUG - Preparando UPDATE para mantenimiento COMPLETADO:", {
+        id: mantenimiento.id,
+        estado,
+        comentarios,
+        fechaUltimaEjecucion,
+        fechaProgramada
+      });
+
+      // 3️⃣ Actualizar mantenimiento completo
       const result = await pool.query(
         `UPDATE mantenimientos
          SET estado = $1,
@@ -284,8 +315,17 @@ const actualizarMantenimientoEstado = async (req, res) => {
         [estado, comentarios, fechaUltimaEjecucion, fechaProgramada, id]
       );
 
+      console.log("✅ Mantenimiento actualizado correctamente:", result.rows[0]);
       return res.json(result.rows[0]);
+
     } else {
+      // 4️⃣ Actualizar solo estado y comentarios para otros casos
+      console.log("🛠️ DEBUG - Preparando UPDATE para mantenimiento NO COMPLETADO:", {
+        id: mantenimiento.id,
+        estado,
+        comentarios
+      });
+
       const result = await pool.query(
         `UPDATE mantenimientos
          SET estado = $1,
@@ -295,13 +335,15 @@ const actualizarMantenimientoEstado = async (req, res) => {
         [estado, comentarios, id]
       );
 
+      console.log("✅ Mantenimiento actualizado correctamente:", result.rows[0]);
       return res.json(result.rows[0]);
     }
   } catch (error) {
-    console.error("❌ Error al actualizar estado de mantenimiento:", error.message);
+    console.error("❌ Error al actualizar estado de mantenimiento:", error);
     res.status(500).json({ error: "Error al actualizar estado de mantenimiento" });
   }
 };
+
 
 
 // PUT /mantenimientos/:id/reprogramar
@@ -314,6 +356,7 @@ const reprogramarMantenimiento = async (req, res) => {
   }
 
   try {
+    // 🔄 Actualizar la fecha del mantenimiento
     const result = await pool.query(
       `UPDATE mantenimientos 
        SET fecha_programada = $1 
@@ -326,15 +369,29 @@ const reprogramarMantenimiento = async (req, res) => {
       return res.status(404).json({ error: "Mantenimiento no encontrado" });
     }
 
+    const mantenimiento = result.rows[0];
+
+    // 🔔 Notificación al responsable si existe
+    if (mantenimiento.operario_id) {
+      await notificar({
+        usuario_id: mantenimiento.operario_id,
+        titulo: "Mantenimiento reprogramado",
+        mensaje: `El mantenimiento "${mantenimiento.nombre}" fue reprogramado para el ${fecha_programada}`,
+        tipo: "alerta",
+        link: `/mantenimientos/${mantenimiento.id}`,
+      });
+    }
+
     res.json({
       message: "Mantenimiento reprogramado correctamente",
-      mantenimiento: result.rows[0],
+      mantenimiento,
     });
   } catch (error) {
     console.error("Error al reprogramar mantenimiento:", error);
     res.status(500).json({ error: "Error del servidor" });
   }
 };
+
 
 
 // ==========================
