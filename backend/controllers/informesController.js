@@ -72,19 +72,19 @@ const generarPDF = async (req, res) => {
         res.setHeader("Content-Disposition", "inline; filename=informe_auditoria.pdf");
         doc.pipe(res);
 
-        // Array para almacenar páginas y contenido
-        const pages = [];
+        // Variables para control de páginas
         let currentPage = 0;
+        let pageData = [];
 
         // ================= FUNCIONES AUXILIARES =================
-        const addPageNumber = () => {
+        const addPageNumber = (pageNumber, totalPages) => {
             const page = doc.page;
-            const pageNumber = `Página ${currentPage + 1}`;
+            const pageText = `Página ${pageNumber} de ${totalPages}`;
             
             doc.save()
                .fontSize(8)
                .fillColor('#888888')
-               .text(pageNumber, 50, page.height - 40, {
+               .text(pageText, 50, page.height - 40, {
                    width: page.width - 100,
                    align: 'center'
                })
@@ -92,7 +92,8 @@ const generarPDF = async (req, res) => {
         };
 
         const addTableHeader = (doc, headers, x, y, colWidths, rowHeight, fillColor = "#00482B") => {
-            doc.fontSize(10).fillColor("#FFFFFF");
+            doc.save();
+            doc.fontSize(10).fillColor("#FFFFFF").font('Helvetica-Bold');
             const totalWidth = Object.values(colWidths).reduce((a, b) => a + b, 0);
             doc.rect(x, y, totalWidth, rowHeight).fill(fillColor);
             
@@ -105,6 +106,7 @@ const generarPDF = async (req, res) => {
                 });
                 currX += width;
             });
+            doc.restore();
             return y + rowHeight;
         };
 
@@ -121,15 +123,17 @@ const generarPDF = async (req, res) => {
 
             // Verificar si necesita nueva página
             if (y + alturaFila > doc.page.height - 70) {
-                addPageNumber();
                 doc.addPage();
                 currentPage++;
-                y = 50;
+                // Agregar encabezado de tabla en la nueva página
+                y = addTableHeader(doc, Object.keys(colWidths).map((_, idx) => Object.keys(row)[idx]), x, 50, colWidths, 20);
             }
 
             // Fondo de la fila
-            doc.rect(x, y, Object.values(colWidths).reduce((a, b) => a + b, 0), alturaFila)
-               .fill(isOdd ? "#f8f9fa" : "#ffffff");
+            if (isOdd) {
+                doc.rect(x, y, Object.values(colWidths).reduce((a, b) => a + b, 0), alturaFila)
+                   .fill("#f8f9fa");
+            }
             
             // Contenido de la fila
             doc.fillColor("#000000").fontSize(8);
@@ -147,20 +151,21 @@ const generarPDF = async (req, res) => {
         };
 
         // Función para generar cada sección
-        const generarSeccion = async (titulo, query, colWidths, headers, formatRow, condicionesFecha = '') => {
+        const generarSeccion = async (titulo, query, colWidths, headers, formatRow, condicionesFecha = '', calcularTotal = null) => {
             let y = doc.y;
             
             // Si no hay suficiente espacio para el título, nueva página
             if (y > doc.page.height - 150) {
-                addPageNumber();
                 doc.addPage();
                 currentPage++;
-                y = 50;
+                y = 80;
             }
 
-            // Título de la sección
-            doc.fontSize(14).fillColor("#00482B").text(titulo, 50, y, { underline: true });
-            y += 30;
+            // Título de la sección con fondo
+            doc.rect(50, y - 5, doc.page.width - 100, 25).fill("#e9ecef");
+            doc.fontSize(14).fillColor("#00482B").font('Helvetica-Bold').text(titulo, 55, y);
+            doc.font('Helvetica'); // Volver a fuente normal
+            y += 35;
 
             // Aplicar filtros de fecha si existen
             let queryFinal = query;
@@ -185,18 +190,34 @@ const generarPDF = async (req, res) => {
             const result = await pool.query(queryFinal, params);
             const rowsData = result.rows.map(formatRow);
 
+            // Calcular total del inventario si es necesario
+            let totalInventario = 0;
+            if (calcularTotal && result.rows.length > 0) {
+                totalInventario = result.rows.reduce((total, row) => {
+                    return total + ((row.cantidad || 0) * (row.costo_unitario || 0));
+                }, 0);
+            }
+
             if (rowsData.length === 0) {
                 doc.fontSize(10).fillColor("#666666").text("No hay datos disponibles para este período.", 50, y);
                 y += 20;
             } else {
+                // Mostrar total del inventario si aplica
+                if (calcularTotal) {
+                    doc.fontSize(10).fillColor("#00482B").font('Helvetica-Bold')
+                       .text(`Valor total del inventario: ${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(totalInventario)}`, 50, y);
+                    doc.font('Helvetica'); // Volver a fuente normal
+                    y += 25;
+                }
+
                 // Verificar espacio para el header de la tabla
                 if (y + 50 > doc.page.height - 70) {
-                    addPageNumber();
                     doc.addPage();
                     currentPage++;
                     y = 50;
                 }
 
+                // AGREGAR ENCABEZADO DE TABLA
                 y = addTableHeader(doc, headers, 50, y, colWidths, 20);
                 
                 // Agregar filas
@@ -210,7 +231,7 @@ const generarPDF = async (req, res) => {
         };
 
         // ================= PORTADA =================
-        currentPage = 0;
+        currentPage = 1;
         
         try {
             const logoPath = path.join(__dirname, "../assets/logoU.png");
@@ -222,12 +243,12 @@ const generarPDF = async (req, res) => {
         }
 
         doc.moveDown(6);
-        doc.fontSize(26).fillColor("#333333").text("Informe de Auditoría", { align: "center" });
+        doc.fontSize(26).fillColor("#333333").font('Helvetica-Bold').text("Informe de Auditoría", { align: "center" });
         doc.moveDown(1);
-        doc.fontSize(14).fillColor("#666666").text("Sistema de Gestión de Inventarios", { align: "center" });
+        doc.fontSize(14).fillColor("#666666").font('Helvetica').text("Sistema de Gestión de Inventarios", { align: "center" });
         
         // Mostrar módulos incluidos
-        doc.moveDown(2);
+        doc.moveDown(20);
         doc.fontSize(12).fillColor("#444444").text("Módulos incluidos:", { align: "center" });
         const modulosTexto = modulosSeleccionados.map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(", ");
         doc.fontSize(10).fillColor("#666666").text(modulosTexto, { align: "center" });
@@ -242,8 +263,74 @@ const generarPDF = async (req, res) => {
         doc.moveDown(8);
         doc.fontSize(14).fillColor("#555555").text(`Generado el ${new Date().toLocaleString('es-ES')}`, { align: "center" });
 
+        // ================= PRE-CÁLCULO DE PÁGINAS =================
+        // Primero generamos todo el contenido para saber cuántas páginas hay
+        const tempPages = [];
+        
+        // Función para simular la generación de contenido
+        const simularSeccion = async (query, condicionesFecha = '') => {
+            let queryFinal = query;
+            const condiciones = [];
+            const params = [];
+            
+            if (fechaInicio && condicionesFecha) {
+                condiciones.push(`${condicionesFecha} >= $${condiciones.length + 1}`);
+                params.push(fechaInicio);
+            }
+            if (fechaFin && condicionesFecha) {
+                condiciones.push(`${condicionesFecha} <= $${condiciones.length + 1}`);
+                params.push(fechaFin + ' 23:59:59');
+            }
+            
+            if (condiciones.length > 0) {
+                const whereClause = query.toUpperCase().includes('WHERE') ? 'AND' : 'WHERE';
+                queryFinal = query.replace(';', '') + ` ${whereClause} ${condiciones.join(' AND ')}`;
+            }
+
+            const result = await pool.query(queryFinal, params);
+            return result.rows.length;
+        };
+
+        // Calcular páginas estimadas
+        let totalPages = 1; // Portada
+
+        if (modulosSeleccionados.includes('inventario')) {
+            const count = await simularSeccion(`
+                SELECT it.nombre, i.cantidad, i.costo_unitario, i.ubicacion_actual
+                FROM inventario i
+                JOIN items it ON i.item_id = it.id
+            `);
+            totalPages += Math.max(1, Math.ceil(count / 20));
+        }
+
+        if (modulosSeleccionados.includes('mantenimientos')) {
+            const count = await simularSeccion(`
+                SELECT m.id, m.nombre, m.estado, m.fecha_programada, u.nombre as responsable
+                FROM mantenimientos m
+                JOIN usuarios u ON m.operario_id = u.id
+            `, 'm.fecha_programada');
+            totalPages += Math.max(1, Math.ceil(count / 25));
+        }
+
+        if (modulosSeleccionados.includes('incidentes')) {
+            const count = await simularSeccion(`
+                SELECT id, descripcion, estado, fecha_creacion 
+                FROM incidente
+            `, 'fecha_creacion');
+            totalPages += Math.max(1, Math.ceil(count / 30));
+        }
+
+        if (modulosSeleccionados.includes('usuarios')) {
+            const count = await simularSeccion(`
+                SELECT u.nombre, r.nombre as rol 
+                FROM usuarios u 
+                JOIN roles r ON u.rol_id = r.id
+            `);
+            totalPages += Math.max(1, Math.ceil(count / 35));
+        }
+
         // Agregar número de página en la portada
-        addPageNumber();
+        addPageNumber(currentPage, totalPages);
 
         // ================= GENERAR SECCIONES SELECCIONADAS =================
         doc.addPage();
@@ -265,7 +352,9 @@ const generarPDF = async (req, res) => {
                     costo: new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(row.costo_unitario || 0),
                     total: new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format((row.cantidad || 0) * (row.costo_unitario || 0)),
                     ubicacion: row.ubicacion_actual || '',
-                })
+                }),
+                '', // Sin condiciones de fecha para inventario
+                true // Calcular total del inventario
             );
         }
 
@@ -325,7 +414,7 @@ const generarPDF = async (req, res) => {
         }
 
         // Agregar número de página en la última página
-        addPageNumber();
+        addPageNumber(currentPage, totalPages);
 
         doc.end();
 
