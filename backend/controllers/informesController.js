@@ -49,13 +49,12 @@ const generarPDF = async (req, res) => {
     let doc;
     try {
         const { modulos, fechaInicio, fechaFin } = req.query;
-        
+
         // Validar módulos seleccionados
         let modulosSeleccionados = [];
         if (modulos) {
             modulosSeleccionados = Array.isArray(modulos) ? modulos : [modulos];
         } else {
-            // Si no se especifican módulos, incluir todos
             modulosSeleccionados = ['inventario', 'mantenimientos', 'incidentes', 'usuarios'];
         }
 
@@ -63,85 +62,62 @@ const generarPDF = async (req, res) => {
             return res.status(400).json({ message: "No se han seleccionado módulos para el informe" });
         }
 
-        doc = new PDFDocument({ 
-            size: "A4", 
-            margins: { top: 50, bottom: 70, left: 50, right: 50 } 
+        doc = new PDFDocument({
+            size: "A4",
+            margins: { top: 50, bottom: 50, left: 50, right: 50 }
         });
 
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", "inline; filename=informe_auditoria.pdf");
         doc.pipe(res);
 
-        // Variables para control de páginas
-        let currentPage = 0;
-        let pageData = [];
-
         // ================= FUNCIONES AUXILIARES =================
-        const addPageNumber = (pageNumber, totalPages) => {
-            const page = doc.page;
-            const pageText = `Página ${pageNumber} de ${totalPages}`;
-            
-            doc.save()
-               .fontSize(8)
-               .fillColor('#888888')
-               .text(pageText, 50, page.height - 40, {
-                   width: page.width - 100,
-                   align: 'center'
-               })
-               .restore();
-        };
-
-        const addTableHeader = (doc, headers, x, y, colWidths, rowHeight, fillColor = "#00482B") => {
-            doc.save();
-            doc.fontSize(10).fillColor("#FFFFFF").font('Helvetica-Bold');
+        const addTableHeader = (doc, headers, x, y, colWidths, rowHeight) => {
             const totalWidth = Object.values(colWidths).reduce((a, b) => a + b, 0);
-            doc.rect(x, y, totalWidth, rowHeight).fill(fillColor);
-            
+            doc.save();
+            doc.rect(x, y, totalWidth, rowHeight).fill("#006D3B"); // Verde profesional
+            doc.fillColor("#FFFFFF").fontSize(10).font("Helvetica-Bold");
+
             let currX = x;
             headers.forEach((header, idx) => {
                 const width = Object.values(colWidths)[idx];
-                doc.text(header, currX + 5, y + 7, { 
-                    width: width - 10, 
+                doc.text(header, currX + 5, y + 6, {
+                    width: width - 10,
                     align: "left"
                 });
                 currX += width;
             });
+
             doc.restore();
             return y + rowHeight;
         };
 
         const addTableRow = (doc, row, x, y, colWidths, rowHeight, isOdd) => {
-            // Calcular altura máxima de la fila
             const alturas = Object.keys(colWidths).map((key, idx) => {
                 const width = Object.values(colWidths)[idx] - 10;
-                return doc.heightOfString(row[key] || '', { 
+                return doc.heightOfString(row[key] || '', {
                     width: width,
                     align: "left"
                 });
             });
-            const alturaFila = Math.max(rowHeight, ...alturas) + 10;
+            const alturaFila = Math.max(rowHeight, ...alturas) + 8;
 
-            // Verificar si necesita nueva página
-            if (y + alturaFila > doc.page.height - 70) {
+            if (y + alturaFila > doc.page.height - 60) {
                 doc.addPage();
-                currentPage++;
-                // Agregar encabezado de tabla en la nueva página
-                y = addTableHeader(doc, Object.keys(colWidths).map((_, idx) => Object.keys(row)[idx]), x, 50, colWidths, 20);
+                y = 80;
             }
 
-            // Fondo de la fila
-            if (isOdd) {
-                doc.rect(x, y, Object.values(colWidths).reduce((a, b) => a + b, 0), alturaFila)
-                   .fill("#f8f9fa");
-            }
-            
-            // Contenido de la fila
-            doc.fillColor("#000000").fontSize(8);
+            doc.save();
+            doc.rect(x, y, Object.values(colWidths).reduce((a, b) => a + b, 0), alturaFila)
+               .fill(isOdd ? "#F6FFF9" : "#FFFFFF");
+            doc.restore();
+
+            doc.fillColor("#000000").fontSize(9);
             let currX = x;
             Object.keys(colWidths).forEach((key, idx) => {
                 const width = Object.values(colWidths)[idx];
-                doc.text(row[key] || '', currX + 5, y + 5, { 
-                    width: width - 10, 
+                doc.text(row[key] || '', currX + 5, y + 4, {
+                    width: width - 10,
                     align: "left"
                 });
                 currX += width;
@@ -150,28 +126,342 @@ const generarPDF = async (req, res) => {
             return y + alturaFila;
         };
 
-        // Función para generar cada sección
+        // Función para generar gráfica de mantenimientos
+        const generarGraficaMantenimientos = async (doc, y) => {
+            try {
+                // Consultar estadísticas de mantenimientos
+                let query = `SELECT estado, COUNT(*) as cantidad FROM mantenimientos`;
+                const params = [];
+                
+                // Agregar filtros de fecha si existen
+                const whereConditions = [];
+                if (fechaInicio) {
+                    whereConditions.push(`fecha_programada >= $${params.length + 1}`);
+                    params.push(fechaInicio);
+                }
+                if (fechaFin) {
+                    whereConditions.push(`fecha_programada <= $${params.length + 1}`);
+                    params.push(fechaFin + ' 23:59:59');
+                }
+                
+                if (whereConditions.length > 0) {
+                    query += ` WHERE ${whereConditions.join(' AND ')}`;
+                }
+                
+                query += ` GROUP BY estado`;
+                
+                const statsResult = await pool.query(query, params);
+                const stats = statsResult.rows;
+
+                if (stats.length === 0) {
+                    doc.fontSize(10).fillColor("#666666").text("No hay datos de mantenimientos para generar la gráfica.", 50, y);
+                    return y + 30;
+                }
+
+                // Calcular totales
+                const totalMantenimientos = stats.reduce((total, item) => total + parseInt(item.cantidad), 0);
+                
+                // Buscar cada estado específico
+                const completados = stats.find(item => item.estado && item.estado.toLowerCase().includes('completado'))?.cantidad || 0;
+                const pendientes = stats.find(item => item.estado && item.estado.toLowerCase().includes('pendiente'))?.cantidad || 0;
+                const enProgreso = stats.find(item => item.estado && item.estado.toLowerCase().includes('progreso'))?.cantidad || 0;
+
+                // Título de la gráfica
+                doc.fontSize(12).fillColor("#00482B").font("Helvetica-Bold")
+                   .text("Estadísticas de Mantenimientos", 50, y);
+                y += 20;
+
+                // Dimensiones de la gráfica
+                const chartWidth = 300;
+                const chartHeight = 150;
+                const chartX = (doc.page.width - chartWidth) / 2;
+                const chartY = y;
+
+                // Dibujar fondo de la gráfica
+                doc.rect(chartX, chartY, chartWidth, chartHeight).fill("#F8F8F8").stroke("#DDD");
+                
+                if (totalMantenimientos > 0) {
+                    const barWidth = 60;
+                    const maxBarHeight = 100;
+                    const spacing = 30;
+                    const startX = chartX + 50;
+
+                    // Colores para cada estado
+                    const colores = {
+                        'Completado': '#28A745',
+                        'Pendiente': '#DC3545', 
+                        'En Progreso': '#FFC107'
+                    };
+
+                    // Dibujar barras
+                    let currentX = startX;
+                    
+                    // Barra Completados
+                    const barHeightCompletados = (completados / totalMantenimientos) * maxBarHeight;
+                    const barYCompletados = chartY + chartHeight - barHeightCompletados - 20;
+                    
+                    doc.rect(currentX, barYCompletados, barWidth, barHeightCompletados)
+                       .fill(colores['Completado']);
+                    
+                    // Texto dentro de la barra
+                    doc.fillColor("#FFFFFF").fontSize(8).font("Helvetica-Bold")
+                       .text(completados.toString(), currentX, barYCompletados + barHeightCompletados/2 - 5, { 
+                           width: barWidth, 
+                           align: 'center' 
+                       });
+                    
+                    // Barra Pendientes
+                    currentX += barWidth + spacing;
+                    const barHeightPendientes = (pendientes / totalMantenimientos) * maxBarHeight;
+                    const barYPendientes = chartY + chartHeight - barHeightPendientes - 20;
+                    
+                    doc.rect(currentX, barYPendientes, barWidth, barHeightPendientes)
+                       .fill(colores['Pendiente']);
+                    
+                    // Texto dentro de la barra
+                    doc.fillColor("#FFFFFF").fontSize(8).font("Helvetica-Bold")
+                       .text(pendientes.toString(), currentX, barYPendientes + barHeightPendientes/2 - 5, { 
+                           width: barWidth, 
+                           align: 'center' 
+                       });
+                    
+                    // Barra En Progreso
+                    currentX += barWidth + spacing;
+                    const barHeightEnProgreso = (enProgreso / totalMantenimientos) * maxBarHeight;
+                    const barYEnProgreso = chartY + chartHeight - barHeightEnProgreso - 20;
+                    
+                    doc.rect(currentX, barYEnProgreso, barWidth, barHeightEnProgreso)
+                       .fill(colores['En Progreso']);
+                    
+                    // Texto dentro de la barra
+                    doc.fillColor("#000000").fontSize(8).font("Helvetica-Bold")
+                       .text(enProgreso.toString(), currentX, barYEnProgreso + barHeightEnProgreso/2 - 5, { 
+                           width: barWidth, 
+                           align: 'center' 
+                       });
+
+                    // Etiquetas de las barras
+                    doc.fillColor("#333333").fontSize(9);
+                    let labelX = startX;
+                    
+                    doc.text("Completados", labelX, chartY + chartHeight - 5, { width: barWidth, align: 'center' });
+                    labelX += barWidth + spacing;
+                    doc.text("Pendientes", labelX, chartY + chartHeight - 5, { width: barWidth, align: 'center' });
+                    labelX += barWidth + spacing;
+                    doc.text("En Progreso", labelX, chartY + chartHeight - 5, { width: barWidth, align: 'center' });
+
+                    // Leyenda
+                    const legendY = chartY + chartHeight + 20;
+                    doc.fontSize(8);
+                    
+                    let legendX = chartX + 20;
+                    Object.keys(colores).forEach((estado, index) => {
+                        // Cuadro de color
+                        doc.rect(legendX, legendY, 8, 8).fill(colores[estado]);
+                        // Texto
+                        doc.fillColor("#333333").text(estado, legendX + 12, legendY - 2);
+                        legendX += 70;
+                    });
+
+                    // Estadísticas detalladas
+                    const statsY = legendY + 25;
+                    doc.fontSize(9).fillColor("#00482B");
+                    doc.text(`Total de mantenimientos: ${totalMantenimientos}`, chartX, statsY);
+                    doc.text(`Completados: ${completados} (${((completados/totalMantenimientos)*100).toFixed(1)}%)`, chartX, statsY + 12);
+                    doc.text(`Pendientes: ${pendientes} (${((pendientes/totalMantenimientos)*100).toFixed(1)}%)`, chartX, statsY + 24);
+                    doc.text(`En progreso: ${enProgreso} (${((enProgreso/totalMantenimientos)*100).toFixed(1)}%)`, chartX, statsY + 36);
+
+                    y = statsY + 50;
+                } else {
+                    doc.fontSize(10).fillColor("#666666").text("No hay datos suficientes para mostrar la gráfica.", chartX + 20, chartY + 50);
+                    y = chartY + 70;
+                }
+
+                return y;
+
+            } catch (error) {
+                console.error("Error al generar gráfica de mantenimientos:", error);
+                doc.fontSize(10).fillColor("#FF0000").text("Error al generar gráfica de mantenimientos", 50, y);
+                return y + 30;
+            }
+        };
+
+        // Función para generar gráfica de incidentes
+        const generarGraficaIncidentes = async (doc, y) => {
+            try {
+                // Consultar estadísticas de incidentes
+                let query = `SELECT estado, COUNT(*) as cantidad FROM incidente`;
+                const params = [];
+                
+                // Agregar filtros de fecha si existen
+                const whereConditions = [];
+                if (fechaInicio) {
+                    whereConditions.push(`fecha_creacion >= $${params.length + 1}`);
+                    params.push(fechaInicio);
+                }
+                if (fechaFin) {
+                    whereConditions.push(`fecha_creacion <= $${params.length + 1}`);
+                    params.push(fechaFin + ' 23:59:59');
+                }
+                
+                if (whereConditions.length > 0) {
+                    query += ` WHERE ${whereConditions.join(' AND ')}`;
+                }
+                
+                query += ` GROUP BY estado`;
+                
+                const statsResult = await pool.query(query, params);
+                const stats = statsResult.rows;
+
+                if (stats.length === 0) {
+                    doc.fontSize(10).fillColor("#666666").text("No hay datos de incidentes para generar la gráfica.", 50, y);
+                    return y + 30;
+                }
+
+                // Calcular totales
+                const totalIncidentes = stats.reduce((total, item) => total + parseInt(item.cantidad), 0);
+                
+                // Buscar cada estado específico
+                const resueltos = stats.find(item => item.estado && item.estado.toLowerCase().includes('resuelto'))?.cantidad || 0;
+                const asignados = stats.find(item => item.estado && item.estado.toLowerCase().includes('asignado'))?.cantidad || 0;
+                const pendientes = stats.find(item => item.estado && item.estado.toLowerCase().includes('pendiente'))?.cantidad || 0;
+
+                // Título de la gráfica
+                doc.fontSize(12).fillColor("#00482B").font("Helvetica-Bold")
+                   .text("Estadísticas de Incidentes", 50, y);
+                y += 20;
+
+                // Dimensiones de la gráfica
+                const chartWidth = 300;
+                const chartHeight = 150;
+                const chartX = (doc.page.width - chartWidth) / 2;
+                const chartY = y;
+
+                // Dibujar fondo de la gráfica
+                doc.rect(chartX, chartY, chartWidth, chartHeight).fill("#F8F8F8").stroke("#DDD");
+                
+                if (totalIncidentes > 0) {
+                    const barWidth = 60;
+                    const maxBarHeight = 100;
+                    const spacing = 30;
+                    const startX = chartX + 50;
+
+                    // Colores para cada estado
+                    const colores = {
+                        'Resuelto': '#28A745',
+                        'Asignado': '#17A2B8', 
+                        'Pendiente': '#DC3545'
+                    };
+
+                    // Dibujar barras
+                    let currentX = startX;
+                    
+                    // Barra Resueltos
+                    const barHeightResueltos = (resueltos / totalIncidentes) * maxBarHeight;
+                    const barYResueltos = chartY + chartHeight - barHeightResueltos - 20;
+                    
+                    doc.rect(currentX, barYResueltos, barWidth, barHeightResueltos)
+                       .fill(colores['Resuelto']);
+                    
+                    // Texto dentro de la barra
+                    doc.fillColor("#FFFFFF").fontSize(8).font("Helvetica-Bold")
+                       .text(resueltos.toString(), currentX, barYResueltos + barHeightResueltos/2 - 5, { 
+                           width: barWidth, 
+                           align: 'center' 
+                       });
+                    
+                    // Barra Asignados
+                    currentX += barWidth + spacing;
+                    const barHeightAsignados = (asignados / totalIncidentes) * maxBarHeight;
+                    const barYAsignados = chartY + chartHeight - barHeightAsignados - 20;
+                    
+                    doc.rect(currentX, barYAsignados, barWidth, barHeightAsignados)
+                       .fill(colores['Asignado']);
+                    
+                    // Texto dentro de la barra
+                    doc.fillColor("#FFFFFF").fontSize(8).font("Helvetica-Bold")
+                       .text(asignados.toString(), currentX, barYAsignados + barHeightAsignados/2 - 5, { 
+                           width: barWidth, 
+                           align: 'center' 
+                       });
+                    
+                    // Barra Pendientes
+                    currentX += barWidth + spacing;
+                    const barHeightPendientes = (pendientes / totalIncidentes) * maxBarHeight;
+                    const barYPendientes = chartY + chartHeight - barHeightPendientes - 20;
+                    
+                    doc.rect(currentX, barYPendientes, barWidth, barHeightPendientes)
+                       .fill(colores['Pendiente']);
+                    
+                    // Texto dentro de la barra
+                    doc.fillColor("#FFFFFF").fontSize(8).font("Helvetica-Bold")
+                       .text(pendientes.toString(), currentX, barYPendientes + barHeightPendientes/2 - 5, { 
+                           width: barWidth, 
+                           align: 'center' 
+                       });
+
+                    // Etiquetas de las barras
+                    doc.fillColor("#333333").fontSize(9);
+                    let labelX = startX;
+                    
+                    doc.text("Resueltos", labelX, chartY + chartHeight - 5, { width: barWidth, align: 'center' });
+                    labelX += barWidth + spacing;
+                    doc.text("Asignados", labelX, chartY + chartHeight - 5, { width: barWidth, align: 'center' });
+                    labelX += barWidth + spacing;
+                    doc.text("Pendientes", labelX, chartY + chartHeight - 5, { width: barWidth, align: 'center' });
+
+                    // Leyenda
+                    const legendY = chartY + chartHeight + 20;
+                    doc.fontSize(8);
+                    
+                    let legendX = chartX + 20;
+                    Object.keys(colores).forEach((estado, index) => {
+                        // Cuadro de color
+                        doc.rect(legendX, legendY, 8, 8).fill(colores[estado]);
+                        // Texto
+                        doc.fillColor("#333333").text(estado, legendX + 12, legendY - 2);
+                        legendX += 70;
+                    });
+
+                    // Estadísticas detalladas
+                    const statsY = legendY + 25;
+                    doc.fontSize(9).fillColor("#00482B");
+                    doc.text(`Total de incidentes: ${totalIncidentes}`, chartX, statsY);
+                    doc.text(`Resueltos: ${resueltos} (${((resueltos/totalIncidentes)*100).toFixed(1)}%)`, chartX, statsY + 12);
+                    doc.text(`Asignados: ${asignados} (${((asignados/totalIncidentes)*100).toFixed(1)}%)`, chartX, statsY + 24);
+                    doc.text(`Pendientes: ${pendientes} (${((pendientes/totalIncidentes)*100).toFixed(1)}%)`, chartX, statsY + 36);
+
+                    y = statsY + 50;
+                } else {
+                    doc.fontSize(10).fillColor("#666666").text("No hay datos suficientes para mostrar la gráfica.", chartX + 20, chartY + 50);
+                    y = chartY + 70;
+                }
+
+                return y;
+
+            } catch (error) {
+                console.error("Error al generar gráfica de incidentes:", error);
+                doc.fontSize(10).fillColor("#FF0000").text("Error al generar gráfica de incidentes", 50, y);
+                return y + 30;
+            }
+        };
+
         const generarSeccion = async (titulo, query, colWidths, headers, formatRow, condicionesFecha = '', calcularTotal = null) => {
             let y = doc.y;
-            
-            // Si no hay suficiente espacio para el título, nueva página
+
             if (y > doc.page.height - 150) {
                 doc.addPage();
-                currentPage++;
                 y = 80;
             }
 
-            // Título de la sección con fondo
-            doc.rect(50, y - 5, doc.page.width - 100, 25).fill("#e9ecef");
-            doc.fontSize(14).fillColor("#00482B").font('Helvetica-Bold').text(titulo, 55, y);
-            doc.font('Helvetica'); // Volver a fuente normal
-            y += 35;
+            doc.rect(50, y - 5, doc.page.width - 100, 25).fill("#FFFFFF");
+            doc.fontSize(14).fillColor("#00482B").font("Helvetica-Bold").text(titulo, 55, y);
+            y += 30;
 
-            // Aplicar filtros de fecha si existen
             let queryFinal = query;
             const condiciones = [];
             const params = [];
-            
+
             if (fechaInicio && condicionesFecha) {
                 condiciones.push(`${condicionesFecha} >= $${condiciones.length + 1}`);
                 params.push(fechaInicio);
@@ -180,17 +470,15 @@ const generarPDF = async (req, res) => {
                 condiciones.push(`${condicionesFecha} <= $${condiciones.length + 1}`);
                 params.push(fechaFin + ' 23:59:59');
             }
-            
+
             if (condiciones.length > 0) {
                 const whereClause = query.toUpperCase().includes('WHERE') ? 'AND' : 'WHERE';
                 queryFinal = query.replace(';', '') + ` ${whereClause} ${condiciones.join(' AND ')}`;
             }
 
-            // Obtener datos
             const result = await pool.query(queryFinal, params);
             const rowsData = result.rows.map(formatRow);
 
-            // Calcular total del inventario si es necesario
             let totalInventario = 0;
             if (calcularTotal && result.rows.length > 0) {
                 totalInventario = result.rows.reduce((total, row) => {
@@ -202,27 +490,21 @@ const generarPDF = async (req, res) => {
                 doc.fontSize(10).fillColor("#666666").text("No hay datos disponibles para este período.", 50, y);
                 y += 20;
             } else {
-                // Mostrar total del inventario si aplica
                 if (calcularTotal) {
-                    doc.fontSize(10).fillColor("#00482B").font('Helvetica-Bold')
+                    doc.fontSize(10).fillColor("#00482B")
                        .text(`Valor total del inventario: ${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(totalInventario)}`, 50, y);
-                    doc.font('Helvetica'); // Volver a fuente normal
-                    y += 25;
+                    y += 20;
                 }
 
-                // Verificar espacio para el header de la tabla
                 if (y + 50 > doc.page.height - 70) {
                     doc.addPage();
-                    currentPage++;
-                    y = 50;
+                    y = 80;
                 }
 
-                // AGREGAR ENCABEZADO DE TABLA
-                y = addTableHeader(doc, headers, 50, y, colWidths, 20);
-                
-                // Agregar filas
+                y = addTableHeader(doc, headers, 50, y, colWidths, 22);
+
                 rowsData.forEach((row, idx) => {
-                    y = addTableRow(doc, row, 50, y, colWidths, 20, idx % 2 === 0);
+                    y = addTableRow(doc, row, 50, y, colWidths, 18, idx % 2 === 0);
                 });
             }
 
@@ -231,8 +513,6 @@ const generarPDF = async (req, res) => {
         };
 
         // ================= PORTADA =================
-        currentPage = 1;
-        
         try {
             const logoPath = path.join(__dirname, "../assets/logoU.png");
             const logoWidth = 120;
@@ -243,100 +523,27 @@ const generarPDF = async (req, res) => {
         }
 
         doc.moveDown(6);
-        doc.fontSize(26).fillColor("#333333").font('Helvetica-Bold').text("Informe de Auditoría", { align: "center" });
-        doc.moveDown(1);
-        doc.fontSize(14).fillColor("#666666").font('Helvetica').text("Sistema de Gestión de Inventarios", { align: "center" });
-        
-        // Mostrar módulos incluidos
-        doc.moveDown(20);
+        doc.fontSize(26).fillColor("#333333").text("Informe de Auditoría", { align: "center" });
+        doc.moveDown(10);
+        doc.fontSize(14).fillColor("#666666").text("Plataforma BIM", { align: "center" });
+
+        doc.moveDown(2);
         doc.fontSize(12).fillColor("#444444").text("Módulos incluidos:", { align: "center" });
         const modulosTexto = modulosSeleccionados.map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(", ");
         doc.fontSize(10).fillColor("#666666").text(modulosTexto, { align: "center" });
-        
-        // Mostrar rango de fechas si se especificó
+
         if (fechaInicio || fechaFin) {
             doc.moveDown(1);
             const rangoFechas = `Período: ${fechaInicio || 'Inicio'} - ${fechaFin || 'Fin'}`;
             doc.fontSize(10).fillColor("#666666").text(rangoFechas, { align: "center" });
         }
-        
-        doc.moveDown(8);
-        doc.fontSize(14).fillColor("#555555").text(`Generado el ${new Date().toLocaleString('es-ES')}`, { align: "center" });
 
-        // ================= PRE-CÁLCULO DE PÁGINAS =================
-        // Primero generamos todo el contenido para saber cuántas páginas hay
-        const tempPages = [];
-        
-        // Función para simular la generación de contenido
-        const simularSeccion = async (query, condicionesFecha = '') => {
-            let queryFinal = query;
-            const condiciones = [];
-            const params = [];
-            
-            if (fechaInicio && condicionesFecha) {
-                condiciones.push(`${condicionesFecha} >= $${condiciones.length + 1}`);
-                params.push(fechaInicio);
-            }
-            if (fechaFin && condicionesFecha) {
-                condiciones.push(`${condicionesFecha} <= $${condiciones.length + 1}`);
-                params.push(fechaFin + ' 23:59:59');
-            }
-            
-            if (condiciones.length > 0) {
-                const whereClause = query.toUpperCase().includes('WHERE') ? 'AND' : 'WHERE';
-                queryFinal = query.replace(';', '') + ` ${whereClause} ${condiciones.join(' AND ')}`;
-            }
+        doc.moveDown(20);
+        doc.fontSize(12).fillColor("#555555").text(`Generado el ${new Date().toLocaleString('es-ES')}`, { align: "center" });
 
-            const result = await pool.query(queryFinal, params);
-            return result.rows.length;
-        };
-
-        // Calcular páginas estimadas
-        let totalPages = 1; // Portada
-
-        if (modulosSeleccionados.includes('inventario')) {
-            const count = await simularSeccion(`
-                SELECT it.nombre, i.cantidad, i.costo_unitario, i.ubicacion_actual
-                FROM inventario i
-                JOIN items it ON i.item_id = it.id
-            `);
-            totalPages += Math.max(1, Math.ceil(count / 20));
-        }
-
-        if (modulosSeleccionados.includes('mantenimientos')) {
-            const count = await simularSeccion(`
-                SELECT m.id, m.nombre, m.estado, m.fecha_programada, u.nombre as responsable
-                FROM mantenimientos m
-                JOIN usuarios u ON m.operario_id = u.id
-            `, 'm.fecha_programada');
-            totalPages += Math.max(1, Math.ceil(count / 25));
-        }
-
-        if (modulosSeleccionados.includes('incidentes')) {
-            const count = await simularSeccion(`
-                SELECT id, descripcion, estado, fecha_creacion 
-                FROM incidente
-            `, 'fecha_creacion');
-            totalPages += Math.max(1, Math.ceil(count / 30));
-        }
-
-        if (modulosSeleccionados.includes('usuarios')) {
-            const count = await simularSeccion(`
-                SELECT u.nombre, r.nombre as rol 
-                FROM usuarios u 
-                JOIN roles r ON u.rol_id = r.id
-            `);
-            totalPages += Math.max(1, Math.ceil(count / 35));
-        }
-
-        // Agregar número de página en la portada
-        addPageNumber(currentPage, totalPages);
-
-        // ================= GENERAR SECCIONES SELECCIONADAS =================
+        // ================= SECCIONES =================
         doc.addPage();
-        currentPage++;
 
-        // Inventario
         if (modulosSeleccionados.includes('inventario')) {
             await generarSeccion(
                 "1. Inventario General",
@@ -353,20 +560,35 @@ const generarPDF = async (req, res) => {
                     total: new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format((row.cantidad || 0) * (row.costo_unitario || 0)),
                     ubicacion: row.ubicacion_actual || '',
                 }),
-                '', // Sin condiciones de fecha para inventario
-                true // Calcular total del inventario
+                '',
+                true
             );
         }
 
-        // Mantenimientos
         if (modulosSeleccionados.includes('mantenimientos')) {
+            // Primero generar la gráfica de mantenimientos
+            let y = doc.y;
+            if (y > doc.page.height - 200) {
+                doc.addPage();
+                y = 80;
+            }
+
+            doc.rect(50, y - 5, doc.page.width - 100, 25).fill("#FFFFFF");
+            doc.fontSize(14).fillColor("#00482B").font("Helvetica-Bold").text("2. Mantenimientos Programados", 55, y);
+            y += 30;
+
+            // Generar gráfica
+            y = await generarGraficaMantenimientos(doc, y);
+            doc.y = y;
+
+            // Luego generar la tabla de mantenimientos
             await generarSeccion(
-                "2. Mantenimientos Programados",
-                `SELECT m.id, m.nombre, m.estado, m.fecha_programada, u.nombre as responsable
+                "", // Título vacío porque ya lo pusimos arriba
+                `SELECT m.nombre, m.estado, m.fecha_programada, u.nombre as responsable
                  FROM mantenimientos m
                  JOIN usuarios u ON m.operario_id = u.id
                  ORDER BY m.fecha_programada DESC`,
-                { nombre: 180, estado: 70, fecha: 90, responsable: 120 },
+                { nombre: 180, estado: 70, fecha: 110, responsable: 120 },
                 ["Nombre", "Estado", "Fecha Programada", "Responsable"],
                 (row) => ({
                     nombre: row.nombre || '',
@@ -378,11 +600,26 @@ const generarPDF = async (req, res) => {
             );
         }
 
-        // Incidentes
         if (modulosSeleccionados.includes('incidentes')) {
+            // Primero generar la gráfica de incidentes
+            let y = doc.y;
+            if (y > doc.page.height - 200) {
+                doc.addPage();
+                y = 80;
+            }
+
+            doc.rect(50, y - 5, doc.page.width - 100, 25).fill("#FFFFFF");
+            doc.fontSize(14).fillColor("#00482B").font("Helvetica-Bold").text("3. Incidentes", 55, y);
+            y += 30;
+
+            // Generar gráfica
+            y = await generarGraficaIncidentes(doc, y);
+            doc.y = y;
+
+            // Luego generar la tabla de incidentes
             await generarSeccion(
-                "3. Incidentes",
-                `SELECT id, descripcion, estado, fecha_creacion 
+                "", // Título vacío porque ya lo pusimos arriba
+                `SELECT descripcion, estado, fecha_creacion 
                  FROM incidente 
                  ORDER BY fecha_creacion DESC`,
                 { descripcion: 250, estado: 70, fecha: 130 },
@@ -396,7 +633,6 @@ const generarPDF = async (req, res) => {
             );
         }
 
-        // Usuarios
         if (modulosSeleccionados.includes('usuarios')) {
             await generarSeccion(
                 "4. Usuarios y Roles",
@@ -413,29 +649,15 @@ const generarPDF = async (req, res) => {
             );
         }
 
-        // Agregar número de página en la última página
-        addPageNumber(currentPage, totalPages);
-
         doc.end();
 
     } catch (error) {
         console.error("Error al generar PDF:", error);
-        
-        // Si el documento ya fue iniciado, intentar finalizarlo
         if (doc) {
-            try {
-                doc.end();
-            } catch (e) {
-                console.error("Error al finalizar documento:", e);
-            }
+            try { doc.end(); } catch (e) { console.error("Error al finalizar documento:", e); }
         }
-        
-        // Verificar si los headers ya fueron enviados
         if (!res.headersSent) {
-            return res.status(500).json({ 
-                message: "Error al generar el PDF",
-                error: error.message 
-            });
+            return res.status(500).json({ message: "Error al generar el PDF", error: error.message });
         }
     }
 };
