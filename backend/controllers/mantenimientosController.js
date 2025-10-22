@@ -1,4 +1,5 @@
 const pool = require('../db'); // conexión a PostgreSQL (pg.Pool)
+const { notificar } = require("../utils/notificar");
 
 // ==========================
 // Obtener todos los mantenimientos con información completa

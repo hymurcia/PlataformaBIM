@@ -25,6 +25,7 @@ import Notificaciones from './components/Notificaciones';
 import PanelInformes from './components/PanelInformes';
 import PanelSolicitudes from './components/GestionSolicitudes';
 import LogsUsuarios from './components/LogsUsuarios';
+import ResetPassword from './components/RestablecerContraseña';
 
 import logoHorizontalBlanco from './assets/IMAGOTIPO HORIZONTAL BLANCO.png';
 import escudoBlanco from './assets/ESCUDO BLANCO.png';
@@ -401,6 +402,10 @@ function App() {
           element={<LogsUsuarios />} 
         />
         */}
+      </Routes>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
 
       {/* <Footer /> */}
