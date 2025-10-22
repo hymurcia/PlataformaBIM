@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Container, Card, Spinner } from 'react-bootstrap';
 import TablaIncidentes from './TablaIncidentes';
 import TablaMantenimientos from './TablaMantenimientos';
+import facatativa2 from "../assets/facatativa-2.jpg"; // 🔹 Imagen de fondo
 
 const TareasResponsable = ({ auth }) => {
   const [tareas, setTareas] = useState([]);
@@ -38,28 +39,48 @@ const TareasResponsable = ({ auth }) => {
   };
 
   return (
-    <Container className="mt-4">
-      <Card className="shadow">
-        <Card.Header className="bg-info text-white">
-          <h2>Mis Asignaciones</h2>
-        </Card.Header>
-        <Card.Body>
-          {error && <div className="alert alert-danger">{error}</div>}
+    <div
+      style={{
+        backgroundImage: `url(${facatativa2})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+        minHeight: '100vh',
+        paddingTop: '30px',
+        paddingBottom: '30px'
+      }}
+    >
+      <Container>
+        <Card className="shadow" style={{ backgroundColor: 'rgba(255, 255, 255, 0.95)' }}>
+          {/* 🔸 Encabezado con color amarillo personalizado */}
+          <Card.Header
+            style={{
+              backgroundColor: '#FBE122',
+              color: 'black',
+              fontWeight: 'bold'
+            }}
+          >
+            <h2>Mis Asignaciones</h2>
+          </Card.Header>
 
-          {loading ? (
-            <div className="text-center my-5">
-              <Spinner animation="border" variant="info" />
-              <p className="mt-2">Cargando datos...</p>
-            </div>
-          ) : (
-            <>
-              <TablaIncidentes tareas={tareas} recargar={fetchTareas} />
-              <TablaMantenimientos mantenimientos={mantenimientos} recargar={fetchTareas} />
-            </>
-          )}
-        </Card.Body>
-      </Card>
-    </Container>
+          <Card.Body>
+            {error && <div className="alert alert-danger">{error}</div>}
+
+            {loading ? (
+              <div className="text-center my-5">
+                <Spinner animation="border" variant="info" />
+                <p className="mt-2">Cargando datos...</p>
+              </div>
+            ) : (
+              <>
+                <TablaIncidentes tareas={tareas} recargar={fetchTareas} />
+                <TablaMantenimientos mantenimientos={mantenimientos} recargar={fetchTareas} />
+              </>
+            )}
+          </Card.Body>
+        </Card>
+      </Container>
+    </div>
   );
 };
 
