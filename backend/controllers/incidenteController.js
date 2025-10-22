@@ -346,6 +346,26 @@ const actualizarEstadoIncidente = async (req, res) => {
     res.status(500).json({ error: "Error al actualizar el estado" });
   }
 };
+const eliminarIncidente = async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`🟡 Eliminando incidente con ID: ${id}`);
+
+    const result = await pool.query('DELETE FROM incidente WHERE id = $1 RETURNING *', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Incidente no encontrado" });
+    }
+
+    console.log(`✅ Incidente ${id} eliminado correctamente`);
+    res.json({ message: "Incidente eliminado correctamente" });
+  } catch (error) {
+    console.error("❌ Error al eliminar incidente:", error.message);
+    res.status(500).json({ error: "Error al eliminar incidente" });
+  }
+};
+
+
 
 module.exports = {
   crearIncidente,
@@ -354,4 +374,5 @@ module.exports = {
   obtenerIncidenteById,
   obtenerImagenesIncidente,
   actualizarEstadoIncidente,
+  eliminarIncidente,
 };

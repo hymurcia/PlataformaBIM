@@ -10,7 +10,8 @@ const {
   obtenerDetalleIncidente,
   obtenerIncidenteById,
   obtenerImagenesIncidente,
-  actualizarEstadoIncidente
+  actualizarEstadoIncidente,
+  eliminarIncidente
 } = require('../controllers/incidenteController');
 
 // Reportar incidente (usuario autenticado)
@@ -30,5 +31,9 @@ router.get('/:id/imagenes', checkRole([1, 2, 3, 4]), obtenerImagenesIncidente);
 
 // Cambiar estado de incidente
 router.put('/:id/estado', checkRole([1, 2]), actualizarEstadoIncidente);
+
+
+// Eliminar incidente
+router.delete('/:id', checkRole([1, 2]), eliminarIncidente);
 
 module.exports = router;

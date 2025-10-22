@@ -110,9 +110,12 @@ const AdminTareas = ({ auth }) => {
     try {
       const token = localStorage.getItem('token');
 
-      await axios.put(`${API_BASE_URL}/incidentes/${incidente.id}/eliminar`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      //await axios.put(`${API_BASE_URL}/incidentes/${incidente.id}/eliminar`, {}, {
+      //  headers: { Authorization: `Bearer ${token}` }
+      //});
+      await axios.delete(`${API_BASE_URL}/incidentes/${incidente.id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
       fetchData();
     } catch (err) {
