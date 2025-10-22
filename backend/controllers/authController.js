@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { generateToken } = require('../utils/jwt');
-import facatativa2 from '../assets/facatativa-2.jpg';
+
 const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
 
 // =========================
