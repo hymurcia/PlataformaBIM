@@ -4,13 +4,13 @@ import io from "socket.io-client";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-const API_URL = "http://localhost:5000/notificaciones";
-const SOCKET_URL = "http://localhost:5000";
+// 🔹 Usa una sola constante base, configurable por variable de entorno
+const BASE_URL = process.env.REACT_APP_API_URL || "http://192.168.56.1:5000";
+const API_URL = `${BASE_URL}/notificaciones`;
 
 const Notificaciones = () => {
   const [notificaciones, setNotificaciones] = useState([]);
   const [open, setOpen] = useState(false);
-  const [socket, setSocket] = useState(null);
   const [mostrarSoloNoLeidas, setMostrarSoloNoLeidas] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ const Notificaciones = () => {
   const usuarioId = localStorage.getItem("usuario_id");
   const noLeidas = notificaciones.filter((n) => !n.leida).length;
 
-  // 🔹 Filtrar últimas 2 semanas
+  // 🔹 Filtra notificaciones de las últimas 2 semanas
   const filtrarRecientes = (lista) => {
     const hoy = new Date();
     return lista.filter((n) => {
@@ -27,6 +27,7 @@ const Notificaciones = () => {
     });
   };
 
+  // 🔹 Cargar notificaciones iniciales
   const cargarNotificaciones = async () => {
     if (!usuarioId) return;
     try {
@@ -37,6 +38,7 @@ const Notificaciones = () => {
     }
   };
 
+  // 🔹 Marcar notificación como leída y redirigir
   const manejarClickNotificacion = async (notificacion) => {
     try {
       if (!notificacion.leida) {
@@ -52,48 +54,62 @@ const Notificaciones = () => {
 
       setOpen(false);
 
+      // Redirección dinámica según tipo o link
       if (notificacion.link) return navigate(notificacion.link);
 
-      switch (notificacion.tipo) {
-        case "nuevo_proyecto":
-          navigate("/proyectos");
-          break;
-        case "tarea_asignada":
-          navigate("/tareas");
-          break;
-        case "documento_compartido":
-          navigate("/documentos");
-          break;
-        case "mensaje":
-          navigate("/mensajes");
-          break;
-        case "revision":
-          navigate("/revisiones");
-          break;
-        default:
-          navigate("/notificaciones");
-          break;
-      }
+      const rutas = {
+        nuevo_proyecto: "/proyectos",
+        tarea_asignada: "/tareas",
+        documento_compartido: "/documentos",
+        mensaje: "/mensajes",
+        revision: "/revisiones",
+      };
+
+      navigate(rutas[notificacion.tipo] || "/notificaciones");
     } catch (error) {
       console.error("❌ Error manejando notificación:", error);
     }
   };
 
+  // 🔹 Conexión WebSocket establecida una sola vez
   useEffect(() => {
     if (!usuarioId) return;
 
-    const newSocket = io(SOCKET_URL, { transports: ["websocket"] });
-    setSocket(newSocket);
-    newSocket.emit("join", usuarioId);
+    const socket = io(BASE_URL, {
+      transports: ["websocket"],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
 
-    newSocket.on("nueva_notificacion", (n) => {
+    socket.emit("join", usuarioId);
+
+    socket.on("connect", () => {
+      console.log("✅ Conectado al servidor WebSocket");
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.warn("⚠️ WebSocket desconectado:", reason);
+    });
+
+    socket.on("connect_error", (err) => {
+      console.error("❌ Error al conectar WebSocket:", err.message);
+    });
+
+    socket.on("nueva_notificacion", (n) => {
       setNotificaciones((prev) => filtrarRecientes([n, ...prev]));
     });
 
     cargarNotificaciones();
-    return () => newSocket.disconnect();
+
+    // 🔹 Limpieza al desmontar el componente
+    return () => {
+      socket.disconnect();
+      console.log("🔌 WebSocket cerrado correctamente");
+    };
   }, [usuarioId]);
 
+  // 🔹 Cerrar dropdown al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -179,7 +195,9 @@ const Notificaciones = () => {
             <button
               onClick={() => setMostrarSoloNoLeidas(!mostrarSoloNoLeidas)}
               style={{
-                background: mostrarSoloNoLeidas ? "#FBE122" : "rgba(255,255,255,0.2)",
+                background: mostrarSoloNoLeidas
+                  ? "#FBE122"
+                  : "rgba(255,255,255,0.2)",
                 color: mostrarSoloNoLeidas ? "#00482B" : "#fff",
                 border: "none",
                 borderRadius: "6px",

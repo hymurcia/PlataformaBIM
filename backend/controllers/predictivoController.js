@@ -1,13 +1,13 @@
-const pool = require('../db'); // Tu pool de PostgreSQL
-const axios = require('axios'); // Reemplaza node-fetch por axios
+const pool = require('../db'); // Pool de conexión PostgreSQL
+const axios = require('axios'); // Cliente HTTP
 const { notificar } = require("../utils/notificar"); // 🔔 Helper de notificaciones
 
-// 🔑 Configuración OpenWeather
+// ==================== 🔑 Configuración de OpenWeather ====================
 const API_KEY = 'ee2ea746561151f1d7ceb05f75e004eb';
 const BASE_URL = 'https://api.openweathermap.org/data/2.5/weather';
 const CITY = 'Facatativa';
 
-// ================= Función para obtener clima actual =================
+// ==================== 🌤 Obtener clima actual ====================
 const obtenerClimaActual = async () => {
   try {
     const url = `${BASE_URL}?q=${CITY}&appid=${API_KEY}&units=metric&lang=es`;
@@ -19,7 +19,7 @@ const obtenerClimaActual = async () => {
   }
 };
 
-// ================= Función para evaluar decisión de mantenimiento =================
+// ==================== 🧠 Evaluar decisión de mantenimiento ====================
 const evaluarMantenimiento = (weatherData) => {
   const clima = weatherData.weather[0].main.toLowerCase();
   const lluvia = weatherData.rain?.['1h'] || 0;
@@ -33,7 +33,7 @@ const evaluarMantenimiento = (weatherData) => {
   return { decision: 'Mantener', razon: 'Clima moderado' };
 };
 
-// ================= Función para obtener mantenimientos de la semana =================
+// ==================== 📅 Obtener mantenimientos de la semana ====================
 const obtenerMantenimientosSemana = async () => {
   const hoy = new Date();
   const primerDia = new Date(hoy);
@@ -54,28 +54,23 @@ const obtenerMantenimientosSemana = async () => {
   return mantenimientos;
 };
 
-// ================= Función para enviar notificación diaria a roles administrativos =================
+// ==================== 🔔 Notificar decisiones importantes ====================
 const notificarDecisionDiaria = async (mantenimientos) => {
-  // Filtrar solo decisiones que requieren acción
-  const decisionesImportantes = mantenimientos.filter(m => m.decision === 'Reprogramar' || m.decision === 'Adelantar');
-  if (decisionesImportantes.length === 0) return; // No hay nada que notificar
-
-  // Evitar notificar más de una vez al día
-  const hoy = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  const { rows: yaNotificado } = await pool.query(
-    `SELECT 1 FROM log_notificaciones WHERE tipo = 'mantenimiento_predictivo' AND fecha = $1`,
-    [hoy]
+  // Filtrar mantenimientos que requieren acción
+  const decisionesImportantes = mantenimientos.filter(
+    m => m.decision === 'Reprogramar' || m.decision === 'Adelantar'
   );
-  if (yaNotificado.length > 0) return; // Ya se notificó hoy
+  if (decisionesImportantes.length === 0) return; // No hay decisiones relevantes
 
-  // Obtener todos los administradores (rol_id = 2)
+  // Obtener administradores (rol_id = 2)
   const { rows: admins } = await pool.query(`SELECT id FROM usuarios WHERE rol_id = 2`);
 
   // Enviar notificación a cada admin
   for (const admin of admins) {
     const mensajes = decisionesImportantes
-      .map(m => `${m.nombre} -> ${m.decision}: ${m.razon}`)
+      .map(m => `${m.nombre} → ${m.decision}: ${m.razon}`)
       .join('\n');
+
     await notificar({
       usuario_id: admin.id,
       titulo: "Mantenimientos de la semana",
@@ -84,37 +79,35 @@ const notificarDecisionDiaria = async (mantenimientos) => {
       link: `/mantenimientos`
     });
   }
-
-  // Registrar que ya se notificó hoy
-  await pool.query(
-    `INSERT INTO log_notificaciones(tipo, fecha) VALUES($1, $2)`,
-    ['mantenimiento_predictivo', hoy]
-  );
 };
 
-// ================= Endpoint principal =================
+// ==================== 🚀 Endpoint principal ====================
 const obtenerMantenimientoDecision = async (req, res) => {
   try {
     // 1️⃣ Obtener mantenimientos de la semana
     const mantenimientos = await obtenerMantenimientosSemana();
     if (mantenimientos.length === 0) {
-      return res.json({ message: 'No hay mantenimientos programados esta semana', mantenimientos: [] });
+      return res.json({
+        message: 'No hay mantenimientos programados esta semana',
+        mantenimientos: []
+      });
     }
 
     // 2️⃣ Obtener clima actual
     const weatherData = await obtenerClimaActual();
 
-    // 3️⃣ Agregar decisión predictiva a cada mantenimiento
+    // 3️⃣ Calcular decisión predictiva para cada mantenimiento
     const mantenimientosConDecision = mantenimientos.map(m => {
       const decision = evaluarMantenimiento(weatherData);
       return { ...m, decision: decision.decision, razon: decision.razon };
     });
 
-    // 4️⃣ Enviar notificación diaria a administradores
+    // 4️⃣ Notificar decisiones importantes
     await notificarDecisionDiaria(mantenimientosConDecision);
 
-    // 5️⃣ Responder con la lista de mantenimientos y decisiones
+    // 5️⃣ Responder al cliente
     return res.json({ mantenimientos: mantenimientosConDecision });
+
   } catch (error) {
     console.error('Error en módulo predictivo:', error);
     return res.status(500).json({ error: 'Error interno en el módulo predictivo' });
@@ -122,8 +115,6 @@ const obtenerMantenimientoDecision = async (req, res) => {
 };
 
 module.exports = { obtenerMantenimientoDecision };
-
-
 
 
 

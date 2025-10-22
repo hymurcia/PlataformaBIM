@@ -19,10 +19,12 @@ import Mantenimientos from './components/Mantenimientos';
 import Clima from './components/Clima';
 import PanelBim from './components/PanelBim';
 import PredictivoMantenimiento from './components/Predictivo';
+import Footer from './components/PiePagina';
 import CrudUsuarios from './components/CrudUsuarios';
 import Notificaciones from './components/Notificaciones';
 import PanelInformes from './components/PanelInformes';
 import PanelSolicitudes from './components/GestionSolicitudes';
+import LogsUsuarios from './components/logsUsuarios';
 import ResetPassword from './components/RestablecerContraseña';
 
 import logoHorizontalBlanco from './assets/IMAGOTIPO HORIZONTAL BLANCO.png';
@@ -67,7 +69,7 @@ function App() {
     <Router>
       <nav style={{
         padding: '10px 20px',
-        backgroundColor: '#00482B',
+        backgroundColor: '#00482B', // Fondo verde institucional
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -76,6 +78,7 @@ function App() {
         gap: '10px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          {/* Botón del escudo que redirecciona a la página de inicio */}
           <Link to="/">
             <img
               src={escudoBlanco}
@@ -83,49 +86,183 @@ function App() {
               style={{ height: '40px', marginRight: '10px' }}
             />
           </Link>
-
-          {/* 🔐 MENÚ DE NAVEGACIÓN */}
           {!auth.isAuthenticated ? (
             <>
-              <NavLink to="/registro" text="Registrarse" style={buttonStyle} hover={buttonHoverStyle} />
-              <NavLink to="/login" text="Iniciar Sesión" style={buttonStyle} hover={buttonHoverStyle} />
-              <NavLink to="/reporte/invitado" text="Reportar como Invitado" style={buttonStyle} hover={buttonHoverStyle} />
+              <Link
+                to="/registro"
+                style={buttonStyle}
+                onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+              >
+                Registrarse
+              </Link>
+              <Link
+                to="/login"
+                style={buttonStyle}
+                onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+              >
+                Iniciar Sesión
+              </Link>
+              <Link
+                to="/reporte/invitado"
+                style={buttonStyle}
+                onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+              >
+                Reportar como Invitado
+              </Link>
             </>
           ) : (
             <>
-              <NavLink to="/reportes" text="Lista de Reportes" style={buttonStyle} hover={buttonHoverStyle} />
-
+              <Link
+                to="/reportes"
+                style={buttonStyle}
+                onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+              >
+                Lista de Reportes
+              </Link>
               {auth.user?.rol_id === 1 && (
                 <>
-                  <NavLink to="/admin/usuarios" text="Usuarios" style={buttonStyle} hover={buttonHoverStyle} />
-                  <NavLink to="/informes" text="Informes" style={buttonStyle} hover={buttonHoverStyle} />
+                  <Link
+                    to="/admin/usuarios"
+                    style={buttonStyle}
+                    onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                    onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+                  >
+                    Usuarios
+                  </Link>
+                  <Link
+                    to="/informes"
+                    style={buttonStyle}
+                    onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                    onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+                  >
+                    Informes
+                  </Link>
                 </>
               )}
-
               {auth.user?.rol_id === 2 && (
                 <>
-                  <NavLink to="/admin/tareas" text="Tareas" style={buttonStyle} hover={buttonHoverStyle} />
-                  <NavLink to="/mantenimientos" text="Mantenimientos" style={buttonStyle} hover={buttonHoverStyle} />
-                  <NavLink to="/bim" text="BIM" style={buttonStyle} hover={buttonHoverStyle} />
-                  <NavLink to="/dashboard" text="Métricas" style={buttonStyle} hover={buttonHoverStyle} />
-                  <NavLink to="/inventario" text="Inventario" style={buttonStyle} hover={buttonHoverStyle} />
-                  <NavLink to="/Gsolicitudes" text="Solicitudes" style={buttonStyle} hover={buttonHoverStyle} />
-                  <NavLink to="/predictivo" text="Recomendación" style={buttonStyle} hover={buttonHoverStyle} />
-                  <NavLink to="/clima" text="Clima" style={buttonStyle} hover={buttonHoverStyle} />
-                  <NavLink to="/informes" text="Informes" style={buttonStyle} hover={buttonHoverStyle} />
+                  <Link
+                    to="/admin/tareas"
+                    style={buttonStyle}
+                    onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                    onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+                  >
+                    Tareas
+                  </Link>
+                  <Link
+                    to="/mantenimientos"
+                    style={buttonStyle}
+                    onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                    onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+                  >
+                    Mantenimientos
+                  </Link>
+                  <Link
+                    to="/bim"
+                    style={buttonStyle}
+                    onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                    onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+                  >
+                    BIM
+                  </Link>
+                  <Link
+                    to="/dashboard"
+                    style={buttonStyle}
+                    onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                    onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+                  >
+                    Metricas
+                  </Link>
+                  <Link
+                    to="/inventario"
+                    style={buttonStyle}
+                    onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                    onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+                  >
+                    Inventario
+                  </Link>
+                  <Link
+                    to="/Gsolicitudes"
+                    style={buttonStyle}
+                    onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                    onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+                  >
+                    Solicitudes
+                  </Link>
+                  <Link
+                    to="/predictivo"
+                    style={buttonStyle}
+                    onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                    onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+                  >
+                    Recomendacion
+                  </Link>
+                  <Link
+                    to="/clima"
+                    style={buttonStyle}
+                    onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                    onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+                  >
+                    Clima
+                  </Link>
+                  <Link
+                    to="/informes"
+                    style={buttonStyle}
+                    onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                    onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+                  >
+                    Informes
+                  </Link>
                 </>
               )}
-
               {auth.user?.rol_id === 3 && (
                 <>
-                  <NavLink to="/mis-tareas" text="Mis Tareas" style={buttonStyle} hover={buttonHoverStyle} />
-                  <NavLink to="/inventario" text="Inventario" style={buttonStyle} hover={buttonHoverStyle} />
-                  <NavLink to="/solicitudes" text="Solicitudes" style={buttonStyle} hover={buttonHoverStyle} />
+                  <Link
+                    to="/mis-tareas"
+                    style={buttonStyle}
+                    onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                    onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+                  >
+                    Mis Tareas
+                  </Link>
+                  <Link
+                    to="/inventario"
+                    style={buttonStyle}
+                    onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                    onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+                  >
+                    Inventario
+                  </Link>
+                  <Link
+                    to="/solicitudes"
+                    style={buttonStyle}
+                    onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                    onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+                  >
+                    Solicitudes
+                  </Link>
                 </>
               )}
-
-              <NavLink to="/reportar" text="Reportar Incidente" style={buttonStyle} hover={buttonHoverStyle} />
-              <NavLink to="/perfil" text="Perfil" style={buttonStyle} hover={buttonHoverStyle} />
+              <Link
+                to="/reportar"
+                style={buttonStyle}
+                onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+              >
+                Reportar Incidente
+              </Link>
+              <Link
+                to="/perfil"
+                style={buttonStyle}
+                onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+              >
+                Perfil
+              </Link>
             </>
           )}
         </div>
@@ -144,53 +281,142 @@ function App() {
         )}
       </nav>
 
-      {/* ✅ TODAS LAS RUTAS EN UN SOLO BLOQUE */}
       <Routes>
-        <Route path="/" element={auth.isAuthenticated ? <CalendarioReportes /> : <Home auth={auth} />} />
-        <Route path="/registro" element={auth.isAuthenticated ? <Navigate to="/perfil" /> : <Registro />} />
-        <Route path="/login" element={auth.isAuthenticated ? <Navigate to="/perfil" /> : <Login setAuth={setAuth} />} />
-        <Route path="/perfil" element={auth.isAuthenticated ? <Perfil auth={auth} setAuth={setAuth} /> : <Navigate to="/" />} />
-        <Route path="/reportar" element={auth.isAuthenticated ? <ReporteIncidente auth={auth} /> : <Navigate to="/login" />} />
-        <Route path="/reporte/invitado" element={<ReporteInvitado />} />
-        <Route path="/reportes" element={auth.isAuthenticated ? <ListaReportes auth={auth} /> : <Navigate to="/login" />} />
-        <Route path="/admin/tareas" element={<PrivateRoute roles={[2]} auth={auth}><AdminTareas auth={auth} /></PrivateRoute>} />
-        <Route path="/mis-tareas" element={<PrivateRoute roles={[3]} auth={auth}><TareasResponsable auth={auth} /></PrivateRoute>} />
-        <Route path="/dashboard" element={<PrivateRoute roles={[2]} auth={auth}><PanelMetricas auth={auth} /></PrivateRoute>} />
-        <Route path="/incidentes/:id" element={<PrivateRoute roles={[1, 2, 3]} auth={auth}><DetalleReporte auth={auth} /></PrivateRoute>} />
-        <Route path="/inventario" element={<PrivateRoute roles={[2, 3]} auth={auth}><PanelInventario /></PrivateRoute>} />
-        <Route path="/admin/usuarios" element={<PrivateRoute roles={[1]} auth={auth}><CrudUsuarios auth={auth} /></PrivateRoute>} />
-        <Route path="/solicitudes" element={<PrivateRoute roles={[2, 3]} auth={auth}><SolicitudesAdquisicion /></PrivateRoute>} />
-        <Route path="/mantenimientos" element={<PrivateRoute roles={[2, 3]} auth={auth}><Mantenimientos /></PrivateRoute>} />
-        <Route path="/clima" element={<PrivateRoute roles={[2, 3]} auth={auth}><Clima /></PrivateRoute>} />
-        <Route path="/bim" element={<PrivateRoute roles={[2, 3]} auth={auth}><PanelBim /></PrivateRoute>} />
-        <Route path="/predictivo" element={<PrivateRoute roles={[2]} auth={auth}><PredictivoMantenimiento /></PrivateRoute>} />
-        <Route path="/informes" element={<PrivateRoute roles={[1, 2]} auth={auth}><PanelInformes /></PrivateRoute>} />
-        <Route path="/Gsolicitudes" element={<PrivateRoute roles={[2]} auth={auth}><PanelSolicitudes /></PrivateRoute>} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+        {/* Ruta principal */}
+        <Route
+          path="/"
+          element={auth.isAuthenticated ? <CalendarioReportes /> : <Home />}
+        />
+        
+        {/* Rutas de autenticación */}
+        <Route
+          path="/registro"
+          element={auth.isAuthenticated ? <Navigate to="/perfil" /> : <Registro />}
+        />
+        <Route
+          path="/login"
+          element={auth.isAuthenticated ? <Navigate to="/perfil" /> : <Login setAuth={setAuth} />}
+        />
+        <Route
+          path="/perfil"
+          element={auth.isAuthenticated ? <Perfil auth={auth} setAuth={setAuth} /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/reset-password"
+          element={<ResetPassword />}
+        />
 
-        {/* Página no encontrada */}
-        <Route path="*" element={<h2 style={{ textAlign: 'center', marginTop: '50px' }}>Página no encontrada</h2>} />
+        {/* Rutas de reportes */}
+        <Route
+          path="/reportar"
+          element={auth.isAuthenticated ? <ReporteIncidente auth={auth} /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/reporte/invitado"
+          element={<ReporteInvitado />}
+        />
+        <Route
+          path="/reportes"
+          element={auth.isAuthenticated ? <ListaReportes auth={auth} /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/incidentes/:id"
+          element={auth.isAuthenticated ? <DetalleReporte auth={auth} /> : <Navigate to="/login" />}
+        />
+
+        {/* Rutas de administración */}
+        <Route
+          path="/admin/tareas"
+          element={auth.isAuthenticated && auth.user?.rol_id === 2 ? <AdminTareas auth={auth} /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/mis-tareas"
+          element={auth.isAuthenticated ? <TareasResponsable auth={auth} /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/dashboard"
+          element={auth.isAuthenticated && auth.user?.rol_id === 2 ? <PanelMetricas auth={auth} /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/admin/usuarios"
+          element={auth.isAuthenticated && auth.user?.rol_id === 1 ? <CrudUsuarios auth={auth} /> : <Navigate to="/" />}
+        />
+
+        {/* Rutas con PrivateRoute */}
+        <Route
+          path="/inventario"
+          element={
+            <PrivateRoute roles={[2, 3]} auth={auth}>
+              <PanelInventario />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/solicitudes"
+          element={
+            <PrivateRoute roles={[2, 3]} auth={auth}>
+              <SolicitudesAdquisicion />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/mantenimientos"
+          element={
+            <PrivateRoute roles={[2, 3]} auth={auth}>
+              <Mantenimientos />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/bim"
+          element={
+            <PrivateRoute roles={[2, 3]} auth={auth}>
+              <PanelBim />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/predictivo"
+          element={
+            <PrivateRoute roles={[2]} auth={auth}>
+              <PredictivoMantenimiento />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/informes"
+          element={
+            <PrivateRoute roles={[1, 2]} auth={auth}>
+              <PanelInformes />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/Gsolicitudes"
+          element={
+            <PrivateRoute roles={[2]} auth={auth}>
+              <PanelSolicitudes />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Otras rutas */}
+        <Route
+          path="/clima"
+          element={auth.isAuthenticated ? <Clima /> : <Navigate to="/login" />}
+        />
+        <Route 
+          path="/logs" 
+          element={<LogsUsuarios />} 
+        />
       </Routes>
+
+      {/* <Footer /> */}
     </Router>
   );
 }
 
-/* 🔹 Componente NavLink reutilizable para el menú */
-function NavLink({ to, text, style, hover }) {
-  return (
-    <Link
-      to={to}
-      style={style}
-      onMouseOver={(e) => Object.assign(e.currentTarget.style, hover)}
-      onMouseOut={(e) => Object.assign(e.currentTarget.style, style)}
-    >
-      {text}
-    </Link>
-  );
-}
-
-/* 🔹 Componente Home */
-function Home({ auth }) {
+function Home() {
   return (
     <div
       style={{
@@ -216,6 +442,7 @@ function Home({ auth }) {
         `}
       </style>
 
+      {/* Capa de color oscuro semitransparente */}
       <div
         style={{
           position: "absolute",
@@ -228,6 +455,7 @@ function Home({ auth }) {
         }}
       ></div>
 
+      {/* Contenido principal */}
       <div
         style={{
           position: "relative",
@@ -253,70 +481,90 @@ function Home({ auth }) {
           }}
         />
 
-        <h1 style={{ fontSize: "2.8rem", fontWeight: "bold", marginBottom: "1rem", color: "#FBE122" }}>
+        <h1
+          style={{
+            fontSize: "2.8rem",
+            fontWeight: "bold",
+            marginBottom: "1rem",
+            color: "#FBE122",
+          }}
+        >
           Plataforma de Mantenimiento Locativo
         </h1>
 
-        <p style={{ fontSize: "1.4rem", fontWeight: "300", marginBottom: "2rem" }}>
-          Gestión eficiente basada en la metodología BIM para la Universidad de Cundinamarca.
+        <p
+          style={{
+            fontSize: "1.4rem",
+            fontWeight: "300",
+            marginBottom: "2rem",
+          }}
+        >
+          Gestión eficiente basada en la metodología BIM para la Universidad de
+          Cundinamarca.
         </p>
 
-        {!auth?.isAuthenticated && (
-          <div style={{ display: "flex", justifyContent: "center", gap: "20px" }}>
-            <Link
-              to="/login"
-              style={{
-                backgroundColor: "#FBE122",
-                color: "#00482B",
-                padding: "12px 25px",
-                borderRadius: "8px",
-                textDecoration: "none",
-                fontWeight: "bold",
-                fontSize: "1.1rem",
-                transition: "background-color 0.3s ease, transform 0.2s ease",
-                boxShadow: "0 4px 10px rgba(0,0,0,0.3)",
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = "#DAAA00";
-                e.currentTarget.style.transform = "scale(1.05)";
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = "#FBE122";
-                e.currentTarget.style.transform = "scale(1)";
-              }}
-            >
-              Iniciar Sesión
-            </Link>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: "20px",
+          }}
+        >
+          <Link
+            to="/login"
+            style={{
+              backgroundColor: "#FBE122",
+              color: "#00482B",
+              padding: "12px 25px",
+              borderRadius: "8px",
+              textDecoration: "none",
+              fontWeight: "bold",
+              fontSize: "1.1rem",
+              transition:
+                "background-color 0.3s ease, transform 0.2s ease",
+              boxShadow: "0 4px 10px rgba(0,0,0,0.3)",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = "#DAAA00";
+              e.currentTarget.style.transform = "scale(1.05)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = "#FBE122";
+              e.currentTarget.style.transform = "scale(1)";
+            }}
+          >
+            Iniciar Sesión
+          </Link>
 
-            <Link
-              to="/registro"
-              style={{
-                backgroundColor: "transparent",
-                color: "#FBE122",
-                border: "2px solid #FBE122",
-                padding: "12px 25px",
-                borderRadius: "8px",
-                textDecoration: "none",
-                fontWeight: "bold",
-                fontSize: "1.1rem",
-                transition: "background-color 0.3s ease, color 0.3s ease, transform 0.2s ease",
-                boxShadow: "0 4px 10px rgba(0,0,0,0.3)",
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = "#FBE122";
-                e.currentTarget.style.color = "#00482B";
-                e.currentTarget.style.transform = "scale(1.05)";
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.color = "#FBE122";
-                e.currentTarget.style.transform = "scale(1)";
-              }}
-            >
-              Registrarse
-            </Link>
-          </div>
-        )}
+          <Link
+            to="/registro"
+            style={{
+              backgroundColor: "transparent",
+              color: "#FBE122",
+              border: "2px solid #FBE122",
+              padding: "12px 25px",
+              borderRadius: "8px",
+              textDecoration: "none",
+              fontWeight: "bold",
+              fontSize: "1.1rem",
+              transition:
+                "background-color 0.3s ease, color 0.3s ease, transform 0.2s ease",
+              boxShadow: "0 4px 10px rgba(0,0,0,0.3)",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = "#FBE122";
+              e.currentTarget.style.color = "#00482B";
+              e.currentTarget.style.transform = "scale(1.05)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.color = "#FBE122";
+              e.currentTarget.style.transform = "scale(1)";
+            }}
+          >
+            Registrarse
+          </Link>
+        </div>
       </div>
     </div>
   );

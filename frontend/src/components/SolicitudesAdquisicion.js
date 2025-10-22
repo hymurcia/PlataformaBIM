@@ -9,7 +9,6 @@ import {
   Spinner,
   Row,
   Col,
-  Badge,
   Modal,
   Alert,
 } from "react-bootstrap";
@@ -131,14 +130,17 @@ const SolicitudesAdquisicion = () => {
       padding: "6px 12px",
       borderRadius: "8px",
       textTransform: "capitalize",
+      display: "inline-block",
+      textAlign: "center",
+      minWidth: "100px",
     };
 
     switch (estado.toLowerCase()) {
       case "pendiente":
         return { ...baseStyle, backgroundColor: "#f0ad4e" }; // Amarillo
-      case "aprobado":
+      case "aprobada":
         return { ...baseStyle, backgroundColor: "#28a745" }; // Verde
-      case "rechazado":
+      case "rechazada":
         return { ...baseStyle, backgroundColor: "#dc3545" }; // Rojo
       default:
         return { ...baseStyle, backgroundColor: "#6c757d" }; // Gris
