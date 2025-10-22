@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { generateToken } = require('../utils/jwt');
-
+import facatativa2 from '../assets/facatativa-2.jpg';
 const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
 
 // =========================
@@ -89,10 +89,10 @@ const loginUsuario = async (req, res) => {
     });
 
     // // Log de ingreso exitoso
-    // await pool.query(
-    //   `INSERT INTO logs (usuario_id, accion) VALUES ($1, $2)`,
-    //   [user.id, 'Ingreso exitoso al sistema']
-    // );
+     await pool.query(
+       `INSERT INTO logs (usuario_id, accion) VALUES ($1, $2)`,
+       [user.id, 'Ingreso exitoso al sistema']
+     );
 
     // Retornar datos sin la contraseña
     const { password: _, ...userWithoutPassword } = user;

@@ -24,7 +24,7 @@ import CrudUsuarios from './components/CrudUsuarios';
 import Notificaciones from './components/Notificaciones';
 import PanelInformes from './components/PanelInformes';
 import PanelSolicitudes from './components/GestionSolicitudes';
-import LogsUsuarios from './components/logsUsuarios';
+import LogsUsuarios from './components/LogsUsuarios';
 import ResetPassword from './components/RestablecerContraseña';
 
 import logoHorizontalBlanco from './assets/IMAGOTIPO HORIZONTAL BLANCO.png';
