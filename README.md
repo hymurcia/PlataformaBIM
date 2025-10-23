@@ -1,6 +1,6 @@
 # Plataforma de Mantenimiento Locativo BIM
 
-Una plataforma web completa para la gestión eficiente de mantenimiento locativo basada en la metodología BIM (Building Information Modeling) para la Universidad de Cundinamarca.
+Una plataforma web completa para la gestión eficiente de mantenimiento locativo basada en la metodología BIM (Building Information Modeling) para la Universidad de Cundinamarca Extensión Facatativá.
 
 ## 📋 Descripción
 
@@ -100,7 +100,7 @@ Esta aplicación permite gestionar de manera integral los incidentes, mantenimie
 cd backend
 npm install
 # Configurar variables de entorno en .env
-npm run dev
+npx nodemon index.js
 ```
 
 ### Frontend
@@ -112,11 +112,25 @@ npm start
 
 ### Variables de Entorno (.env)
 ```env
+DB_HOST=localhost
+DB_USER=postgres
+DB_PASSWORD=Clave
+DB_NAME=plataforma_web_bim
+DB_PORT=5432
 PORT=5000
-DATABASE_URL=postgresql://usuario:password@localhost:5432/nombre_db
-JWT_SECRET=tu_jwt_secret
-EMAIL_USER=tu_email@gmail.com
-EMAIL_PASS=tu_password_email
+JWT_SECRET= claveSecreta
+
+FRONTEND_URL=http://localhost:3000
+
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=correo
+EMAIL_PASS= clave
+EMAIL_FROM="Soporte Plataforma BIM <administradorTI@gmail.com>"
+FRONTEND_URL=http://localhost:3000
+RESET_TOKEN_EXP_HOURS=1
+
 ```
 
 ## 📖 Uso
@@ -212,5 +226,10 @@ Este proyecto está bajo la Licencia ISC.
 Desarrollado para la Universidad de Cundinamarca como parte del proyecto de modernización de la gestión de mantenimiento locativo.
 
 ## 📞 Soporte
+Hernan Yessid Murcia Salinas
++573143169575
+hymurcia@ucundinamarca.edu.co
 
-Para soporte técnico o consultas, contactar al equipo de desarrollo de la Universidad de Cundinamarca.
+Carlos Felipe Gómez Plazas 
++573186730858 
+cfelipegomez@cundinamarca.edu.co 
