@@ -12,7 +12,7 @@ const app = express();
 const server = http.createServer(app); // Necesario para Socket.IO
 const io = socketIO(server, {
   cors: {
-    origin: "http://localhost:3000", // frontend React
+    origin: "https://plataformabim-1.onrender.com", // frontend React
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
