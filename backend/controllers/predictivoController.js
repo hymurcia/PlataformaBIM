@@ -48,6 +48,7 @@ const obtenerMantenimientosSemana = async () => {
     SELECT id, nombre, fecha_programada, estado
     FROM mantenimientos
     WHERE fecha_programada::date BETWEEN $1::date AND $2::date
+      AND estado != 'cancelado'               -- ❌ Excluir los cancelados
     ORDER BY fecha_programada
   `;
   const { rows: mantenimientos } = await pool.query(query, [primerDia, ultimoDia]);
@@ -60,6 +61,7 @@ const notificarDecisionDiaria = async (mantenimientos) => {
   const decisionesImportantes = mantenimientos.filter(
     m => m.decision === 'Reprogramar' || m.decision === 'Adelantar'
   );
+
   if (decisionesImportantes.length === 0) return; // No hay decisiones relevantes
 
   // Obtener administradores (rol_id = 2)

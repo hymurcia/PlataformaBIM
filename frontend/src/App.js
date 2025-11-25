@@ -30,6 +30,7 @@ import ResetPassword from './components/RestablecerContraseña';
 import logoHorizontalBlanco from './assets/IMAGOTIPO HORIZONTAL BLANCO.png';
 import escudoBlanco from './assets/ESCUDO BLANCO.png';
 import fondo from './assets/entrada.jpg';
+import PanelOperativo from './components/PanelOperativo';
 
 function App() {
   const [auth, setAuth] = useState({
@@ -222,6 +223,14 @@ function App() {
               {auth.user?.rol_id === 3 && (
                 <>
                   <Link
+                    to="/panel-operativo"
+                    style={buttonStyle}
+                    onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
+                    onMouseOut={(e) => Object.assign(e.currentTarget.style, buttonStyle)}
+                  >
+                    Panel Operativo
+                  </Link>
+                  <Link
                     to="/mis-tareas"
                     style={buttonStyle}
                     onMouseOver={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
@@ -287,7 +296,7 @@ function App() {
           path="/"
           element={auth.isAuthenticated ? <CalendarioReportes /> : <Home />}
         />
-        
+
         {/* Rutas de autenticación */}
         <Route
           path="/registro"
@@ -295,7 +304,19 @@ function App() {
         />
         <Route
           path="/login"
-          element={auth.isAuthenticated ? <Navigate to="/perfil" /> : <Login setAuth={setAuth} />}
+          element={
+            auth.isAuthenticated ? (
+              auth.user.rol_id === 3 ? (
+                <Navigate to="/panel-operativo" />
+              ) : auth.user.rol_id === 2 ? (
+                <Navigate to="/dashboard" />
+              ) : (
+                <Navigate to="/perfil" />
+              )
+            ) : (
+              <Login setAuth={setAuth} />
+            )
+          }
         />
         <Route
           path="/perfil"
@@ -341,6 +362,12 @@ function App() {
           path="/admin/usuarios"
           element={auth.isAuthenticated && auth.user?.rol_id === 1 ? <CrudUsuarios auth={auth} /> : <Navigate to="/" />}
         />
+
+        <Route
+          path="/panel-operativo"
+          element={auth.isAuthenticated && auth.user?.rol_id === 3 ? <PanelOperativo auth={auth} /> : <Navigate to="/" />}
+        />
+
 
         {/* Rutas con PrivateRoute */}
         <Route
@@ -405,9 +432,9 @@ function App() {
           path="/clima"
           element={auth.isAuthenticated ? <Clima /> : <Navigate to="/login" />}
         />
-        <Route 
-          path="/logs" 
-          element={<LogsUsuarios />} 
+        <Route
+          path="/logs"
+          element={<LogsUsuarios />}
         />
       </Routes>
 

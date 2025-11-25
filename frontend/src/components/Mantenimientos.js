@@ -41,15 +41,15 @@ const Mantenimientos = () => {
   const [ubicaciones, setUbicaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [nuevo, setNuevo] = useState({
-    nombre: '',
-    descripcion: '',
-    frecuencia: '',
-    fecha_programada: '',
-    operario_id: '',
-    componente_id: '',
-    ubicacion_id: '',
-    dias: '',
-    comentarios: ''
+    nombre: "",
+    descripcion: "",
+    frecuencia: "",
+    fecha_programada: "",
+    operario_id: "",
+    componente_id: "",
+    ubicacion_id: "",
+    dias: "",
+    comentarios: "",
   });
 
   // Modales
@@ -272,6 +272,7 @@ const Mantenimientos = () => {
         display: "flex",
         alignItems: "center",
         position: "relative",
+        overflow: "auto",
       }}
     >
       {/* 🔲 Capa semitransparente */}
@@ -284,12 +285,14 @@ const Mantenimientos = () => {
         }}
       ></div>
 
-      <Container className="my-5" style={{ zIndex: 2 }}>
+      <Container className="my-5" style={{ zIndex: 2, maxHeight: "90vh" }}>
         <Card
-          className="shadow-lg border-0"
+          className="shadow-lg border-0 d-flex flex-column"
           style={{
             borderRadius: "15px",
             backgroundColor: "rgba(255, 255, 255, 0.92)",
+            maxHeight: "90vh",
+            height: "90vh",
           }}
         >
           <Card.Header
@@ -298,6 +301,7 @@ const Mantenimientos = () => {
               backgroundColor: "#00482B",
               borderTopLeftRadius: "15px",
               borderTopRightRadius: "15px",
+              flexShrink: 0,
             }}
           >
             <h2 style={{ margin: 0, color: "#FBE122", fontWeight: "bold" }}>
@@ -305,103 +309,95 @@ const Mantenimientos = () => {
             </h2>
           </Card.Header>
 
-          <Card.Body>
+          <Card.Body className="d-flex flex-column p-0" style={{ overflow: "hidden" }}>
             {/* 🔍 Filtros */}
-            <Row className="mb-4 g-2">
-              <Col md={3}>
-                <Form.Control
-                  placeholder="🔍 Buscar por nombre"
-                  value={filtroNombre}
-                  onChange={(e) => setFiltroNombre(e.target.value)}
-                />
-              </Col>
-              <Col md={2}>
-                <Form.Select
-                  value={filtroFrecuencia}
-                  onChange={(e) => setFiltroFrecuencia(e.target.value)}
-                >
-                  <option value="">Frecuencia</option>
-                  {Object.keys(frecuenciaColores).map((f) => (
-                    <option key={f}>{f}</option>
-                  ))}
-                </Form.Select>
-              </Col>
-              <Col md={2}>
-                <Form.Select
-                  value={filtroEstado}
-                  onChange={(e) => setFiltroEstado(e.target.value)}
-                >
-                  <option value="">Estado</option>
-                  {Object.keys(estadoColores).map((e) => (
-                    <option key={e}>{e}</option>
-                  ))}
-                </Form.Select>
-              </Col>
-              <Col md={2}>
-                <Form.Control
-                  placeholder="Responsable"
-                  value={filtroResponsable}
-                  onChange={(e) => setFiltroResponsable(e.target.value)}
-                />
-              </Col>
-              <Col md={3}>
-                <Form.Control
-                  placeholder="Ubicación"
-                  value={filtroUbicacion}
-                  onChange={(e) => setFiltroUbicacion(e.target.value)}
-                />
-              </Col>
-            </Row>
+            <div className="p-3 border-bottom" style={{ flexShrink: 0 }}>
+              <Row className="g-2">
+                <Col md={3}>
+                  <Form.Control
+                    placeholder="🔍 Buscar por nombre"
+                    value={filtroNombre}
+                    onChange={(e) => setFiltroNombre(e.target.value)}
+                  />
+                </Col>
+                <Col md={2}>
+                  <Form.Select
+                    value={filtroFrecuencia}
+                    onChange={(e) => setFiltroFrecuencia(e.target.value)}
+                  >
+                    <option value="">Frecuencia</option>
+                    {Object.keys(frecuenciaColores).map((f) => (
+                      <option key={f}>{f}</option>
+                    ))}
+                  </Form.Select>
+                </Col>
+                <Col md={2}>
+                  <Form.Select
+                    value={filtroEstado}
+                    onChange={(e) => setFiltroEstado(e.target.value)}
+                  >
+                    <option value="">Estado</option>
+                    {Object.keys(estadoColores).map((e) => (
+                      <option key={e}>{e}</option>
+                    ))}
+                  </Form.Select>
+                </Col>
+                <Col md={2}>
+                  <Form.Control
+                    placeholder="Responsable"
+                    value={filtroResponsable}
+                    onChange={(e) => setFiltroResponsable(e.target.value)}
+                  />
+                </Col>
+                <Col md={3}>
+                  <Form.Control
+                    placeholder="Ubicación"
+                    value={filtroUbicacion}
+                    onChange={(e) => setFiltroUbicacion(e.target.value)}
+                  />
+                </Col>
+              </Row>
+            </div>
 
-            {/* 🧾 Tabla */}
-            <div className="table-responsive">
-              <Table striped bordered hover responsive className="align-middle text-center">
-                <thead
-                  style={{ backgroundColor: "#00482B", color: "#FBE122" }}
-                >
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Frecuencia</th>
-                    <th>Última ejecución</th>
-                    <th>Próxima</th>
-                    <th>Estado tiempo</th>
-                    <th>Componente</th>
-                    <th>Ubicación</th>
-                    <th>Responsable</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mantenimientosFiltrados.map((m) => {
-                    const proxima = calcularProximaFecha(m);
-                    return (
-                      <tr key={m.id}>
-                        <td>{m.nombre}</td>
-                        <td>
-                          <Badge
-                            bg={frecuenciaColores[m.frecuencia] || "secondary"}
-                          >
-                            {m.frecuencia}
-                          </Badge>
-                        </td>
-                        <td>{formatDate(m.fecha_ultima_ejecucion)}</td>
-                        <td>{proxima ? formatDate(proxima) : "—"}</td>
-                        <td>{verificarEstadoTiempo(m)}</td>
-                        <td>{obtenerNombreComponente(m.componente_id)}</td>
-                        <td>{obtenerNombreUbicacion(m.ubicacion_id)}</td>
-                        <td>
-                          {m.responsable_nombre
-                            ? `${m.responsable_nombre} ${m.responsable_apellido || ""}`
-                            : "No asignado"}
-                        </td>
-                        <td>
-                          <Badge bg={estadoColores[m.estado] || "secondary"}>
-                            {m.estado}
-                          </Badge>
-                        </td>
-                        <td>
-                          <div className="d-flex gap-2 justify-content-center">
+            {/* 🧾 Tabla con scroll */}
+            <div 
+              className="flex-grow-1"
+              style={{ 
+                overflow: "auto",
+                maxHeight: "calc(90vh - 200px)"
+              }}
+            >
+              <div className="p-3">
+                <Table striped bordered hover responsive className="align-middle text-center">
+                  <thead
+                    style={{ 
+                      backgroundColor: "#00482B", 
+                      color: "#FBE122",
+                      position: "sticky",
+                      top: 0,
+                      zIndex: 10
+                    }}
+                  >
+                    <tr>
+                      <th>Nombre</th>
+                      <th>Frecuencia</th>
+                      <th>Última ejecución</th>
+                      <th>Próxima</th>
+                      <th>Estado tiempo</th>
+                      <th>Componente</th>
+                      <th>Ubicación</th>
+                      <th>Responsable</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mantenimientosFiltrados.length > 0 ? (
+                      mantenimientosFiltrados.map((m) => {
+                        const proxima = calcularProximaFecha(m);
+                        const acciones =
+                          m.estado === "cancelado" ? (
+                            // 👁️ Solo mostrar botón "Ver"
                             <Button
                               variant="info"
                               size="sm"
@@ -409,46 +405,102 @@ const Mantenimientos = () => {
                             >
                               👁️ Ver
                             </Button>
-                            <Button
-                              variant="warning"
-                              size="sm"
-                              onClick={() => abrirModalEditar(m)}
-                            >
-                              ✏️ Editar
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => abrirModalReprogramar(m)}
-                            >
-                              ⏰ Reprogramar
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => eliminarMantenimiento(m.id)}
-                            >
-                              🗑️ Eliminar
-                            </Button>
+                          ) : (
+                            // 🔧 Mostrar todas las acciones
+                            <div className="d-flex gap-2 justify-content-center flex-wrap">
+                              <Button
+                                variant="info"
+                                size="sm"
+                                onClick={() => abrirModalVer(m)}
+                              >
+                                👁️ Ver
+                              </Button>
+                              <Button
+                                variant="warning"
+                                size="sm"
+                                onClick={() => abrirModalEditar(m)}
+                              >
+                                ✏️ Editar
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => abrirModalReprogramar(m)}
+                              >
+                                ⏰ Reprogramar
+                              </Button>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={() => eliminarMantenimiento(m.id)}
+                              >
+                                🗑️ Eliminar
+                              </Button>
+                            </div>
+                          );
+
+                        return (
+                          <tr key={m.id}>
+                            <td>{m.nombre}</td>
+                            <td>
+                              <Badge
+                                bg={frecuenciaColores[m.frecuencia] || "secondary"}
+                              >
+                                {m.frecuencia}
+                              </Badge>
+                            </td>
+                            <td>{formatDate(m.fecha_ultima_ejecucion)}</td>
+                            <td>{proxima ? formatDate(proxima) : "—"}</td>
+                            <td>{verificarEstadoTiempo(m)}</td>
+                            <td>{obtenerNombreComponente(m.componente_id)}</td>
+                            <td>{obtenerNombreUbicacion(m.ubicacion_id)}</td>
+                            <td>
+                              {m.responsable_nombre
+                                ? `${m.responsable_nombre} ${m.responsable_apellido || ""}`
+                                : "No asignado"}
+                            </td>
+                            <td>
+                              <Badge bg={estadoColores[m.estado] || "secondary"}>
+                                {m.estado}
+                              </Badge>
+                            </td>
+                            <td>{acciones}</td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan="10" className="text-center py-4">
+                          <div className="text-muted">
+                            <h5>No se encontraron mantenimientos</h5>
+                            <p>Intenta ajustar los filtros de búsqueda</p>
                           </div>
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </Table>
+                    )}
+                  </tbody>
+                </Table>
+              </div>
             </div>
           </Card.Body>
         </Card>
       </Container>
 
-      {/* Modal Ver */}
-      <Modal show={showModalView} onHide={() => setShowModalView(false)} centered size="lg">
-        <Modal.Header closeButton style={{ backgroundColor: "#00482B", color: "#fff" }}>
+      {/* Modal Ver con scroll */}
+      <Modal 
+        show={showModalView} 
+        onHide={() => setShowModalView(false)} 
+        centered 
+        size="lg"
+      >
+        <Modal.Header 
+          closeButton 
+          style={{ backgroundColor: "#00482B", color: "#fff" }}
+        >
           <Modal.Title>📋 Detalles del Mantenimiento</Modal.Title>
         </Modal.Header>
         {viewData && (
-          <Modal.Body>
+          <Modal.Body style={{ maxHeight: "60vh", overflow: "auto" }}>
             <Row>
               <Col md={6}>
                 <p><strong>Nombre:</strong> {viewData.nombre}</p>
@@ -463,31 +515,69 @@ const Mantenimientos = () => {
                 <p><strong>Próxima ejecución:</strong> {formatDate(calcularProximaFecha(viewData))}</p>
               </Col>
             </Row>
+            {viewData.comentarios && (
+              <Row className="mt-3">
+                <Col>
+                  <p><strong>Comentarios:</strong></p>
+                  <div 
+                    style={{ 
+                      backgroundColor: "#f8f9fa", 
+                      padding: "10px", 
+                      borderRadius: "5px",
+                      maxHeight: "150px",
+                      overflow: "auto"
+                    }}
+                  >
+                    {viewData.comentarios}
+                  </div>
+                </Col>
+              </Row>
+            )}
           </Modal.Body>
         )}
-        <Modal.Footer><Button variant="secondary" onClick={() => setShowModalView(false)}>Cerrar</Button></Modal.Footer>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModalView(false)}>
+            Cerrar
+          </Button>
+        </Modal.Footer>
       </Modal>
 
-       {/* Modal Editar */}
-      <Modal show={showModalEdit} onHide={() => setShowModalEdit(false)} centered size="lg">
-        <Modal.Header closeButton style={{ backgroundColor: "#00482B", color: "#fff" }}>
+      {/* Modal Editar con scroll */}
+      <Modal 
+        show={showModalEdit} 
+        onHide={() => setShowModalEdit(false)} 
+        centered 
+        size="lg"
+      >
+        <Modal.Header 
+          closeButton 
+          style={{ backgroundColor: "#00482B", color: "#fff" }}
+        >
           <Modal.Title>✏️ Editar Mantenimiento</Modal.Title>
         </Modal.Header>
         {editData && (
-          <Modal.Body>
+          <Modal.Body style={{ maxHeight: "70vh", overflow: "auto" }}>
             <Form>
               <Row className="g-2">
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Nombre</Form.Label>
-                    <Form.Control value={editData.nombre} onChange={(e) => setEditData({ ...editData, nombre: e.target.value })} />
+                    <Form.Control 
+                      value={editData.nombre} 
+                      onChange={(e) => setEditData({ ...editData, nombre: e.target.value })} 
+                    />
                   </Form.Group>
                 </Col>
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Frecuencia</Form.Label>
-                    <Form.Select value={editData.frecuencia} onChange={(e) => setEditData({ ...editData, frecuencia: e.target.value })}>
-                      {Object.keys(frecuenciaColores).map((f) => <option key={f}>{f}</option>)}
+                    <Form.Select 
+                      value={editData.frecuencia} 
+                      onChange={(e) => setEditData({ ...editData, frecuencia: e.target.value })}
+                    >
+                      {Object.keys(frecuenciaColores).map((f) => (
+                        <option key={f}>{f}</option>
+                      ))}
                     </Form.Select>
                   </Form.Group>
                 </Col>
@@ -497,7 +587,10 @@ const Mantenimientos = () => {
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Estado</Form.Label>
-                    <Form.Select value={editData.estado} onChange={(e) => setEditData({ ...editData, estado: e.target.value })}>
+                    <Form.Select 
+                      value={editData.estado} 
+                      onChange={(e) => setEditData({ ...editData, estado: e.target.value })}
+                    >
                       <option value="pendiente">Pendiente</option>
                       <option value="en_progreso">En progreso</option>
                       <option value="completado">Completado</option>
@@ -508,7 +601,11 @@ const Mantenimientos = () => {
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Fecha Programada</Form.Label>
-                    <Form.Control type="date" value={editData.fecha_programada || ""} onChange={(e) => setEditData({ ...editData, fecha_programada: e.target.value })} />
+                    <Form.Control 
+                      type="date" 
+                      value={editData.fecha_programada || ""} 
+                      onChange={(e) => setEditData({ ...editData, fecha_programada: e.target.value })} 
+                    />
                   </Form.Group>
                 </Col>
               </Row>
@@ -517,27 +614,69 @@ const Mantenimientos = () => {
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Responsable</Form.Label>
-                    <Form.Select value={editData.operario_id || ""} onChange={(e) => setEditData({ ...editData, operario_id: Number(e.target.value) })}>
+                    <Form.Select 
+                      value={editData.operario_id || ""} 
+                      onChange={(e) => setEditData({ ...editData, operario_id: Number(e.target.value) })}
+                    >
                       <option value="">Seleccione responsable</option>
-                      {responsables.map((r) => <option key={r.id} value={r.id}>{r.nombre} {r.apellido}</option>)}
+                      {responsables.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.nombre} {r.apellido}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Ubicación</Form.Label>
+                    <Form.Select 
+                      value={editData.ubicacion_id || ""} 
+                      onChange={(e) => setEditData({ ...editData, ubicacion_id: Number(e.target.value) })}
+                    >
+                      <option value="">Seleccione ubicación</option>
+                      {ubicaciones.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.nombre}
+                        </option>
+                      ))}
                     </Form.Select>
                   </Form.Group>
                 </Col>
               </Row>
 
-              <Form.Group>
+              <Form.Group className="mb-3">
                 <Form.Label>Descripción</Form.Label>
-                <Form.Control as="textarea" rows={3} value={editData.descripcion || ""} onChange={(e) => setEditData({ ...editData, descripcion: e.target.value })} />
+                <Form.Control 
+                  as="textarea" 
+                  rows={3} 
+                  value={editData.descripcion || ""} 
+                  onChange={(e) => setEditData({ ...editData, descripcion: e.target.value })} 
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Comentarios</Form.Label>
+                <Form.Control 
+                  as="textarea" 
+                  rows={2} 
+                  value={editData.comentarios || ""} 
+                  onChange={(e) => setEditData({ ...editData, comentarios: e.target.value })} 
+                  placeholder="Agregar comentarios adicionales..."
+                />
               </Form.Group>
             </Form>
           </Modal.Body>
         )}
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModalEdit(false)}>Cancelar</Button>
-          <Button variant="primary" onClick={guardarEdicion}>Guardar cambios</Button>
+          <Button variant="secondary" onClick={() => setShowModalEdit(false)}>
+            Cancelar
+          </Button>
+          <Button variant="primary" onClick={guardarEdicion}>
+            Guardar cambios
+          </Button>
         </Modal.Footer>
       </Modal>
-
 
       {/* Modal Reprogramar */}
       <Modal
@@ -545,14 +684,17 @@ const Mantenimientos = () => {
         onHide={() => setShowModalReprogramar(false)}
         centered
       >
-        <Modal.Header closeButton style={{ backgroundColor: "#00482B", color: "#fff" }}>
+        <Modal.Header 
+          closeButton 
+          style={{ backgroundColor: "#00482B", color: "#fff" }}
+        >
           <Modal.Title>⏰ Reprogramar Mantenimiento</Modal.Title>
         </Modal.Header>
         {reprogramarData && (
           <Modal.Body>
             <Form>
               <Form.Group>
-                <Form.Label>Nueva fecha</Form.Label>
+                <Form.Label>Nueva fecha programada</Form.Label>
                 <Form.Control
                   type="date"
                   value={reprogramarData.fecha_programada || ""}
@@ -563,6 +705,9 @@ const Mantenimientos = () => {
                     })
                   }
                 />
+                <Form.Text className="text-muted">
+                  Seleccione la nueva fecha para reprogramar este mantenimiento
+                </Form.Text>
               </Form.Group>
             </Form>
           </Modal.Body>
@@ -575,7 +720,7 @@ const Mantenimientos = () => {
             Cancelar
           </Button>
           <Button variant="primary" onClick={guardarReprogramacion}>
-            Guardar
+            Guardar reprogramación
           </Button>
         </Modal.Footer>
       </Modal>

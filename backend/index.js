@@ -8,37 +8,26 @@ const http = require("http");
 const socketIO = require("socket.io");
 const { setSocket } = require("./utils/notificar");
 
-// Inicialización de Express y servidor HTTP
 const app = express();
-const server = http.createServer(app);
-
-// =========================
-// Socket.IO (Notificaciones en tiempo real)
-// =========================
+const server = http.createServer(app); // Necesario para Socket.IO
 const io = socketIO(server, {
   cors: {
-    origin: "http://localhost:3000", // URL del frontend React
+    origin: "http://localhost:3000", // frontend React
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
 });
 
+const saltRounds = 10;
+
 // =========================
 // Middlewares
 // =========================
-//app.use(cors({ origin: "http://localhost:3000", credentials: true }));
-app.use(cors({
-  origin: ["http://localhost:3000", "http://192.168.56.1:3000"],
-  credentials: true
-}));
-
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 app.use(express.json());
 
-// Archivos estáticos (uploads y pdfs)
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-app.use("/pdfs", express.static(path.join(__dirname, "pdfs")));
-
-// Establecer codificación UTF-8 para todas las respuestas JSON
+// Middleware para establecer UTF-8 en todas las respuestas
 app.use((req, res, next) => {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   next();
@@ -64,7 +53,6 @@ const inventarioRoutes = require("./routes/inventario");
 const itemRoutes = require("./routes/item");
 const informesRoutes = require("./routes/informes");
 const notificacionesRoutes = require("./routes/notificaciones");
-const logsRoutes = require('./routes/logs');
 
 // =========================
 // Usar rutas
@@ -86,10 +74,9 @@ app.use("/inventario", inventarioRoutes);
 app.use("/items", itemRoutes);
 app.use("/informes", informesRoutes);
 app.use("/notificaciones", notificacionesRoutes);
-app.use('/logs', logsRoutes);
 
 // =========================
-// Socket.IO - Conexiones de usuarios
+// Socket.IO para notificaciones
 // =========================
 io.on("connection", (socket) => {
   console.log("🟢 Usuario conectado:", socket.id);
@@ -105,14 +92,14 @@ io.on("connection", (socket) => {
   });
 });
 
-// Inyectar Socket.IO al módulo de notificaciones
+// 🔹 Inyectar socket en el módulo de notificaciones
 setSocket(io);
 
-// Hacer disponible el socket globalmente si se necesita
+// Exportar io por si lo necesitas en otro lugar
 app.set("io", io);
 
 // =========================
-// Servidor en marcha
+// Start
 // =========================
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

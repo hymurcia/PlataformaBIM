@@ -35,17 +35,63 @@ const TablaComponentes = () => {
   const token = localStorage.getItem("token") || "";
   const headers = { Authorization: `Bearer ${token}` };
 
-  // 🔹 Cargar datos
+  // 🔹 Calcular edad actual en meses
+  const calcularEdadActual = (fechaInstalacion) => {
+    if (!fechaInstalacion) return 0;
+    const hoy = new Date();
+    const fecha = new Date(fechaInstalacion);
+    const diffMeses =
+      (hoy.getFullYear() - fecha.getFullYear()) * 12 +
+      (hoy.getMonth() - fecha.getMonth());
+    return diffMeses > 0 ? diffMeses : 0;
+  };
+
+  // 🔹 Determinar estado de revisión
+  const calcularEstadoRevision = (componente) => {
+    const vidaUtil = componente.vida_util_meses || 0;
+    const edad = calcularEdadActual(componente.fecha_instalacion);
+
+    if (!vidaUtil) {
+      return { texto: "En buen estado", porcentaje: 10, color: "success" }; // siempre verde mínimo
+    }
+
+    // Garantizar porcentaje mínimo visible para barras verdes
+    let porcentaje = (edad / vidaUtil) * 100;
+    porcentaje = Math.min(Math.max(porcentaje, 10), 100);
+
+    let color = "success";
+    let texto = "En buen estado";
+
+    if (porcentaje >= 100) {
+      color = "danger";
+      texto = "Revisión inmediata";
+    } else if (porcentaje >= 80) {
+      color = "warning";
+      texto = "Revisión próxima";
+    }
+
+    return { texto, porcentaje, color };
+  };
+
+  // 🔹 Cargar datos desde API
   const fetchData = async () => {
     try {
       setLoading(true);
-      const resComp = await axios.get(`${API_BASE_URL}/componentes`, { headers });
-      const resUb = await axios.get(`${API_BASE_URL}/ubicaciones`, { headers });
-      setComponentes(resComp.data);
+      const [resComp, resUb] = await Promise.all([
+        axios.get(`${API_BASE_URL}/componentes`, { headers }),
+        axios.get(`${API_BASE_URL}/ubicaciones`, { headers }),
+      ]);
+
+      const componentesProcesados = resComp.data.map((c) => ({
+        ...c,
+        edad_actual: calcularEdadActual(c.fecha_instalacion),
+        estado_revision: calcularEstadoRevision(c),
+      }));
+
+      setComponentes(componentesProcesados);
       setUbicaciones(resUb.data);
 
-      // Guardar también los que están en baja
-      const bajas = resComp.data.filter((c) => c.estado === "baja");
+      const bajas = componentesProcesados.filter((c) => c.estado === "baja");
       setComponentesBaja(bajas);
     } catch (err) {
       setError("❌ Error al cargar componentes o ubicaciones");
@@ -122,40 +168,6 @@ const TablaComponentes = () => {
     });
   };
 
-  // 🔹 Vida útil
-  const obtenerPorcentajeVida = (c) => {
-    const vidaUtil = c.vida_util_meses || 0;
-    if (!c.fecha_instalacion || !vidaUtil) {
-      return { porcentaje: 0, color: "secondary", texto: "Sin datos" };
-    }
-
-    const fechaInstalacion = new Date(c.fecha_instalacion);
-    const hoy = new Date();
-    const mesesUsados =
-      (hoy.getFullYear() - fechaInstalacion.getFullYear()) * 12 +
-      (hoy.getMonth() - fechaInstalacion.getMonth());
-
-    const porcentaje = Math.min((mesesUsados / vidaUtil) * 100, 100);
-
-    let color = "success";
-    let texto = "En buen estado";
-    if (porcentaje >= 100) {
-      color = "danger";
-      texto = "Revisión inmediata";
-    } else if (porcentaje >= 80) {
-      color = "warning";
-      texto = "Revisión próxima";
-    }
-
-    return { porcentaje, color, texto };
-  };
-
-  // 🔹 Filtrar solo activos
-  const componentesActivos = componentes.filter((c) => c.estado === "activo");
-  const componentesFiltrados = filtroUbicacion
-    ? componentesActivos.filter((c) => c.ubicacion_id === parseInt(filtroUbicacion))
-    : componentesActivos;
-
   // 🔹 Baja de componente
   const abrirModalBaja = (componente) => {
     setComponenteBaja(componente);
@@ -182,6 +194,12 @@ const TablaComponentes = () => {
       alert(err.response?.data?.error || "❌ Error al dar de baja el componente");
     }
   };
+
+  // 🔹 Filtrar solo activos
+  const componentesActivos = componentes.filter((c) => c.estado === "activo");
+  const componentesFiltrados = filtroUbicacion
+    ? componentesActivos.filter((c) => c.ubicacion_id === parseInt(filtroUbicacion))
+    : componentesActivos;
 
   return (
     <div
@@ -264,7 +282,7 @@ const TablaComponentes = () => {
               <tbody>
                 {componentesFiltrados.length > 0 ? (
                   componentesFiltrados.map((c) => {
-                    const { porcentaje, color, texto } = obtenerPorcentajeVida(c);
+                    const { porcentaje, color, texto } = calcularEstadoRevision(c);
                     return (
                       <tr key={c.id}>
                         <td>{c.id}</td>
@@ -285,6 +303,7 @@ const TablaComponentes = () => {
                             now={porcentaje}
                             variant={color}
                             label={`${texto} (${Math.round(porcentaje)}%)`}
+                            striped
                             animated
                           />
                         </td>
@@ -313,6 +332,7 @@ const TablaComponentes = () => {
         )}
       </div>
 
+      {/* Modales */}
       {/* Modal Crear */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>
         <Modal.Header closeButton>
@@ -402,7 +422,7 @@ const TablaComponentes = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* Modal Historial de bajas */}
+      {/* Modal Historial */}
       <Modal
         show={showHistorialModal}
         onHide={() => setShowHistorialModal(false)}

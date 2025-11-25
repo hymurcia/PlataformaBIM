@@ -68,6 +68,11 @@ const Predictivo = () => {
     }
   };
 
+  // 🔍 Filtrar para no mostrar los cancelados
+  const mantenimientosFiltrados = mantenimientos.filter(
+    (m) => m.estado.toLowerCase() !== "cancelado"
+  );
+
   return (
     <div
       style={{
@@ -125,7 +130,7 @@ const Predictivo = () => {
               <p style={{ color: "#d32f2f", fontWeight: "bold" }}>
                 ⚠️ {error}
               </p>
-            ) : mantenimientos.length === 0 ? (
+            ) : mantenimientosFiltrados.length === 0 ? (
               <p className="text-center text-muted">
                 No hay mantenimientos programados esta semana.
               </p>
@@ -148,7 +153,7 @@ const Predictivo = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {mantenimientos.map((m, index) => (
+                    {mantenimientosFiltrados.map((m, index) => (
                       <tr key={index}>
                         <td>{m.nombre}</td>
                         <td>{formatDate(m.fecha_programada)}</td>

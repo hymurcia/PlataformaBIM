@@ -146,7 +146,125 @@ const obtenerMetricasMantenimientos = async (req, res) => {
   }
 };
 
+const obtenerMetricasOperativo = async (req, res) => {
+  try {
+    const usuarioId = req.params.id;
+    console.log("📊 Generando métricas para operativo:", usuarioId);
+
+    const responsableRes = await pool.query(
+      `SELECT id FROM responsables WHERE usuario_id = $1 AND activo = true`,
+      [usuarioId]
+    );
+    const responsableId = responsableRes.rows[0]?.id;
+
+    if (!responsableId) {
+      return res.status(200).json({
+        resumen: { total_tareas: 0, en_progreso: 0, terminadas: 0 },
+        incidentes: { riesgos: { bajo: 0, medio: 0, alto: 0 }, kanban: { en_progreso: [], terminado: [] } },
+        mantenimientos: { riesgos: { bajo: 0, medio: 0, alto: 0 }, kanban: { en_progreso: [], terminado: [] } },
+      });
+    }
+
+    // === INCIDENTES ===
+    const incidentesRes = await pool.query(`
+      SELECT i.id, i.titulo, i.gravedad, i.estado
+      FROM asignaciones a
+      JOIN incidente i ON a.incidente_id = i.id
+      WHERE a.responsable_id = $1
+    `, [responsableId]);
+
+    // === MANTENIMIENTOS ===
+    const mantenimientosRes = await pool.query(`
+      SELECT m.id, m.nombre AS titulo, COALESCE(m.estado, 'pendiente') AS estado, m.frecuencia
+      FROM mantenimientos m
+      WHERE m.operario_id = $1
+    `, [usuarioId]);
+
+    const incidentes = incidentesRes.rows;
+    const mantenimientos = mantenimientosRes.rows;
+
+    // === CLASIFICAR FRECUENCIAS EN RIESGOS ===
+    const clasificarFrecuencia = (f) => {
+      if (!f) return "medio";
+      f = f.toLowerCase();
+      if (["diario", "semanal"].includes(f)) return "alto";
+      if (["mensual", "trimestral"].includes(f)) return "medio";
+      return "bajo"; // semestral, anual
+    };
+
+    const riesgosIncidentes = {
+      bajo: incidentes.filter(i => i.gravedad === "baja").length,
+      medio: incidentes.filter(i => i.gravedad === "media").length,
+      alto: incidentes.filter(i => i.gravedad === "alta" || i.gravedad === "critica").length,
+    };
+
+    const riesgosMantenimientos = {
+      bajo: mantenimientos.filter(m => clasificarFrecuencia(m.frecuencia) === "bajo").length,
+      medio: mantenimientos.filter(m => clasificarFrecuencia(m.frecuencia) === "medio").length,
+      alto: mantenimientos.filter(m => clasificarFrecuencia(m.frecuencia) === "alto").length,
+    };
+
+    // === KANBAN ===
+    const kanbanIncidentes = {
+      en_progreso: incidentes
+        .filter(t => ["pendiente", "asignado", "en_progreso"].includes(t.estado))
+        .map(t => ({
+          tarea: t.titulo,
+          prioridad: t.gravedad || "media",
+          progreso: 30,
+          tipo: "incidente"
+        })),
+      terminado: incidentes
+        .filter(t => ["resuelto", "completado"].includes(t.estado))
+        .map(t => ({
+          tarea: t.titulo,
+          prioridad: t.gravedad || "media",
+          progreso: 100,
+          tipo: "incidente"
+        })),
+    };
+
+    const kanbanMantenimientos = {
+      en_progreso: mantenimientos
+        .filter(t => ["pendiente", "asignado", "en_progreso"].includes(t.estado))
+        .map(t => ({
+          tarea: t.titulo,
+          prioridad: clasificarFrecuencia(t.frecuencia),
+          progreso: 30,
+          tipo: "mantenimiento"
+        })),
+      terminado: mantenimientos
+        .filter(t => ["resuelto", "completado"].includes(t.estado))
+        .map(t => ({
+          tarea: t.titulo,
+          prioridad: clasificarFrecuencia(t.frecuencia),
+          progreso: 100,
+          tipo: "mantenimiento"
+        })),
+    };
+
+    const resumen = {
+      total_tareas: incidentes.length + mantenimientos.length,
+      en_progreso: kanbanIncidentes.en_progreso.length + kanbanMantenimientos.en_progreso.length,
+      terminadas: kanbanIncidentes.terminado.length + kanbanMantenimientos.terminado.length,
+    };
+
+    res.json({
+      resumen,
+      incidentes: { riesgos: riesgosIncidentes, kanban: kanbanIncidentes },
+      mantenimientos: { riesgos: riesgosMantenimientos, kanban: kanbanMantenimientos },
+    });
+
+  } catch (err) {
+    console.error("❌ Error en obtenerMetricasOperativo:", err.message);
+    res.status(500).json({ error: "Error al obtener métricas", detalles: err.message });
+  }
+};
+
+
+
 module.exports = { 
   obtenerMetricas,
-  obtenerMetricasMantenimientos
+  obtenerMetricasMantenimientos,
+  obtenerMetricasOperativo
 };

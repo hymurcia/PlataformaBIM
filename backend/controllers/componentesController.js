@@ -25,7 +25,7 @@ const calcularEdadActual = (fechaInstalacion) => {
   const diffMeses =
     (hoy.getFullYear() - fecha.getFullYear()) * 12 +
     (hoy.getMonth() - fecha.getMonth());
-  return diffMeses;
+  return diffMeses > 0 ? diffMeses : 0;
 };
 
 // 🔹 Determinar estado de revisión
@@ -33,19 +33,30 @@ const calcularEstadoRevision = (componente) => {
   const vidaUtil = componente.vida_util_meses || 0;
   const edad = calcularEdadActual(componente.fecha_instalacion);
 
-  if (!vidaUtil) return 'Sin datos';
+  if (!vidaUtil) return { texto: 'Sin datos', porcentaje: 5, color: 'secondary' };
 
-  const porcentajeVida = edad / vidaUtil;
+  let porcentaje = (edad / vidaUtil) * 100;
+  porcentaje = Math.min(Math.max(porcentaje, 5), 100);
 
-  if (porcentajeVida >= 1) return 'Revisión inmediata';
-  if (porcentajeVida >= 0.8) return 'Revisión próxima';
-  return 'activo';
+  let color = 'success';
+  let texto = 'En buen estado';
+
+  if (porcentaje >= 100) {
+    color = 'danger';
+    texto = 'Revisión inmediata';
+  } else if (porcentaje >= 80) {
+    color = 'warning';
+    texto = 'Revisión próxima';
+  }
+
+  return { texto, porcentaje, color };
 };
 
 // 🔹 Listar todos los componentes
 const obtenerComponentes = async (req, res) => {
   try {
     if (!validarToken(req, res)) return;
+
     const { rows } = await pool.query('SELECT * FROM componentes ORDER BY id');
 
     const componentes = rows.map(c => ({
@@ -54,12 +65,16 @@ const obtenerComponentes = async (req, res) => {
       estado_revision: calcularEstadoRevision(c)
     }));
 
+    // ✅ Mostrar en consola lo que se envía al frontend
+   // console.log("📦 Componentes procesados:", componentes);
+    
     res.json(componentes);
   } catch (err) {
     console.error("Error al obtener componentes:", err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
+
 
 // 🔹 Obtener componente por ID
 const obtenerComponenteById = async (req, res) => {
@@ -256,7 +271,7 @@ const darDeBajaComponente = async (req, res) => {
     const { frecuencia: frecuenciaBody, numero_serie: serieNuevo } = req.body || {};
     const frecuencia = frecuenciaBody || "semestral";
 
-    // 1) Obtener componente que queremos dar de baja CON INFORMACIÓN COMPLETA DEL RESPONSABLE
+    // 1️⃣ Obtener componente con info del responsable
     const { rows: compRows } = await client.query(
       `SELECT c.*, 
               resp.id AS responsable_id,
@@ -267,23 +282,39 @@ const darDeBajaComponente = async (req, res) => {
        WHERE c.id = $1`,
       [id]
     );
-    
+
     if (compRows.length === 0) {
       await client.query("ROLLBACK");
       return res.status(404).json({ error: "Componente no encontrado." });
     }
+
     const componente = compRows[0];
+    console.log("🔍 DEBUG - Datos del componente:", componente);
 
-    console.log('🔍 DEBUG - Datos del componente:', {
-      id: componente.id,
-      nombre: componente.nombre,
-      responsable_mantenimiento: componente.responsable_mantenimiento,
-      responsable_id: componente.responsable_id,
-      responsable_nombre: componente.responsable_nombre,
-      responsable_apellido: componente.responsable_apellido
-    });
+    // 2️⃣ Cancelar mantenimientos PENDIENTES o COMPLETADOS del componente
+    const { rows: mantCancelados } = await client.query(
+      `UPDATE mantenimientos
+       SET estado = 'cancelado',
+           comentarios = COALESCE(comentarios,'') || ' - Cancelado automáticamente: componente dado de baja.'
+       WHERE componente_id = $1 AND estado IN ('pendiente', 'completado')
+       RETURNING *`,
+      [id]
+    );
+    console.log(`🔴 Cancelados ${mantCancelados.length} mantenimientos (pendientes o completados) del componente dado de baja.`);
 
-    // 2) Determinar item_id para consultar inventario
+    // 3️⃣ Obtener último operario asignado (de cualquier mantenimiento)
+    const { rows: mantUltimo } = await client.query(
+      `SELECT operario_id 
+       FROM mantenimientos
+       WHERE componente_id = $1 AND operario_id IS NOT NULL
+       ORDER BY fecha_programada DESC
+       LIMIT 1`,
+      [id]
+    );
+    const operarioIdMantenimiento = mantUltimo[0]?.operario_id || componente.responsable_mantenimiento || null;
+    console.log("👷 Operario para nuevo mantenimiento:", operarioIdMantenimiento);
+
+    // 4️⃣ Determinar item_id del componente
     let itemId = componente.item_id;
     if (!itemId) {
       const { rows: itemRows } = await client.query(
@@ -299,7 +330,7 @@ const darDeBajaComponente = async (req, res) => {
       itemId = itemRows[0].id;
     }
 
-    // 3) Verificar disponibilidad en inventario
+    // 5️⃣ Verificar disponibilidad en inventario
     const { rows: invRows } = await client.query(
       `SELECT * FROM inventario WHERE item_id = $1 AND cantidad > 0 LIMIT 1 FOR UPDATE`,
       [itemId]
@@ -307,128 +338,73 @@ const darDeBajaComponente = async (req, res) => {
     if (invRows.length === 0) {
       await client.query("ROLLBACK");
       return res.status(400).json({
-        error: `❌ No se puede dar de baja el componente "${componente.nombre}" porque no hay disponibilidad en inventario (item_id=${itemId}).`,
+        error: `❌ No se puede dar de baja el componente "${componente.nombre}" porque no hay disponibilidad en inventario.`,
       });
     }
     const inventarioItem = invRows[0];
 
-    let nuevoComponente;
-    
-    // 4) SOLO CAMINO B: Crear nuevo componente desde inventario
-    const numeroSerieFinal = serieNuevo || `${componente.numero_serie || 'R'}-REP-${Date.now()}`;
-
-    // ✅ DEFINIR CLARAMENTE EL RESPONSABLE
-    const responsableId = componente.responsable_mantenimiento || componente.responsable_id;
-    
-    console.log('🔍 DEBUG - Responsable a asignar:', {
-      responsableId: responsableId,
-      tieneValor: !!responsableId
-    });
-
-    // Crear nuevo componente con estado 'activo'
+    // 6️⃣ Crear nuevo componente desde inventario
+    const numeroSerieFinal = serieNuevo || `${componente.numero_serie || "R"}-REP-${Date.now()}`;
     const { rows: insertRows } = await client.query(
-      `
-      INSERT INTO componentes
-      (nombre, descripcion, numero_serie, ubicacion_id, fecha_instalacion, 
-       vida_util_meses, estado, responsable_mantenimiento, item_id)
+      `INSERT INTO componentes
+      (nombre, descripcion, numero_serie, ubicacion_id, fecha_instalacion, vida_util_meses, estado, responsable_mantenimiento, item_id)
       VALUES ($1, $2, $3, $4, CURRENT_DATE, $5, 'activo', $6, $7)
-      RETURNING *
-      `,
+      RETURNING *`,
       [
         componente.nombre,
         componente.descripcion || null,
         numeroSerieFinal,
         componente.ubicacion_id,
         componente.vida_util_meses || null,
-        responsableId, // ✅ Asignar el responsable
+        operarioIdMantenimiento,
         itemId,
       ]
     );
-    nuevoComponente = insertRows[0];
+    const nuevoComponente = insertRows[0];
+    console.log("✅ Nuevo componente creado:", nuevoComponente);
 
-    console.log('🔍 DEBUG - Nuevo componente creado:', {
-      id: nuevoComponente.id,
-      responsable_asignado: nuevoComponente.responsable_mantenimiento
-    });
-
-    // Descontar 1 unidad del inventario
+    // 7️⃣ Actualizar inventario (disminuir 1 unidad)
     await client.query(
-      `UPDATE inventario SET cantidad = cantidad - 1, fecha_actualizacion = NOW() WHERE id = $1`,
+      `UPDATE inventario 
+       SET cantidad = cantidad - 1, fecha_actualizacion = NOW() 
+       WHERE id = $1`,
       [inventarioItem.id]
     );
 
-    // 5) MARCAR el componente viejo como 'baja' y cancelar mantenimientos pendientes
+    // 8️⃣ Dar de baja componente anterior
     await client.query(
-      `
-      UPDATE componentes
-      SET estado = 'baja',
-          fecha_ultima_revision = CURRENT_DATE
-      WHERE id = $1
-      `,
+      `UPDATE componentes 
+       SET estado = 'baja', fecha_ultima_revision = CURRENT_DATE 
+       WHERE id = $1`,
       [id]
     );
 
-    await client.query(
-      `
-      UPDATE mantenimientos
-      SET estado = 'cancelado',
-          comentarios = COALESCE(comentarios, '') || ' - Cancelado: componente dado de baja.'
-      WHERE componente_id = $1
-        AND estado != 'completado'
-      `,
-      [id]
-    );
+    // 9️⃣ Crear mantenimiento de reemplazo para el nuevo componente
+    const nombreMant = `Mantenimiento Correctivo ${nuevoComponente.numero_serie}`;
+    const descripcionMant = `Mantenimiento programado para componente instalado reemplazando ${componente.numero_serie}`;
+    const comentarios = `Generado automáticamente al instalar nuevo componente ${nuevoComponente.numero_serie} reemplazando ${componente.numero_serie}.`;
 
-    // 6) Crear mantenimiento de reemplazo para el NUEVO componente
-    const nuevoSerie = nuevoComponente.numero_serie || `ID-${nuevoComponente.id}`;
-    const viejoSerie = componente.numero_serie || `ID-${componente.id}`;
-    const nombreMant = `Mantenimiento preventivo ${nuevoSerie}`;
-    const descripcion = `Mantenimiento programado para componente instalado reemplazando ${viejoSerie}`;
-    
-    // ✅ FECHA: Usar CURRENT_DATE (hoy) en lugar de fecha futura
-    const fechaProgramada = 'CURRENT_DATE';
-    
-    // ✅ OPERARIO: Usar el mismo responsable que el componente
-    const operario_id = responsableId;
-    
-    const ubicacion_id = componente.ubicacion_id;
-    const comentarios = `Generado automáticamente al instalar nuevo componente ${nuevoSerie} reemplazando ${viejoSerie}.`;
-
-    console.log('🔍 DEBUG - Creando mantenimiento:', {
-      operario_id: operario_id,
-      tieneOperario: !!operario_id,
-      componente_id: nuevoComponente.id
-    });
-
-    // ✅ CORREGIDO: Insertar mantenimiento con operario_id explícito
     const { rows: mantRows } = await client.query(
-      `
-      INSERT INTO mantenimientos
+      `INSERT INTO mantenimientos
       (nombre, descripcion, frecuencia, fecha_programada, estado, componente_id, operario_id, ubicacion_id, comentarios)
-      VALUES ($1, $2, $3, ${fechaProgramada}, $4, $5, $6, $7, $8)
-      RETURNING *
-      `,
+      VALUES ($1, $2, $3, CURRENT_DATE, 'pendiente', $4, $5, $6, $7)
+      RETURNING *`,
       [
         nombreMant,
-        descripcion,
+        descripcionMant,
         frecuencia,
-        "pendiente",
         nuevoComponente.id,
-        operario_id, // ✅ Esto NO debe ser null
-        ubicacion_id,
+        operarioIdMantenimiento,
+        componente.ubicacion_id,
         comentarios,
       ]
     );
     const mantenimientoCreado = mantRows[0];
-
-    console.log('🔍 DEBUG - Mantenimiento creado:', {
-      id: mantenimientoCreado.id,
-      operario_id: mantenimientoCreado.operario_id
-    });
+    console.log("🛠️ Mantenimiento creado para nuevo componente:", mantenimientoCreado);
 
     await client.query("COMMIT");
 
-    // 7) Traer info actualizada para devolver (detallada)
+    // 🔟 Consultar información detallada del nuevo componente
     const { rows: nuevoCompRows } = await pool.query(
       `SELECT c.*, u.nombre AS ubicacion_nombre, it.nombre AS item_nombre,
               usr.nombre AS responsable_nombre, usr.apellido AS responsable_apellido
@@ -436,7 +412,7 @@ const darDeBajaComponente = async (req, res) => {
        LEFT JOIN ubicaciones u ON c.ubicacion_id = u.id
        LEFT JOIN items it ON c.item_id = it.id
        LEFT JOIN usuarios usr ON c.responsable_mantenimiento = usr.id
-       WHERE c.id = $1`,
+       WHERE c.id = $1 AND c.estado = 'activo'`,
       [nuevoComponente.id]
     );
 
@@ -451,53 +427,48 @@ const darDeBajaComponente = async (req, res) => {
        LEFT JOIN componentes c ON m.componente_id = c.id
        LEFT JOIN ubicaciones u ON m.ubicacion_id = u.id
        LEFT JOIN usuarios o ON m.operario_id = o.id
-       WHERE m.id = $1`,
+       WHERE m.id = $1 AND c.estado = 'activo'`,
       [mantenimientoCreado.id]
     );
 
-    console.log('🔍 DEBUG - Resultado final mantenimiento:', {
-      operario_id: mantDet[0]?.operario_id,
-      operario_nombre: mantDet[0]?.operario_nombre,
-      operario_apellido: mantDet[0]?.operario_apellido
-    });
+    console.log("📋 Resultado final mantenimiento:", mantDet[0]);
 
     return res.json({
       message: "✅ Componente dado de baja y nuevo componente instalado correctamente.",
-      componente_baja: {
-        ...componente,
-        estado: 'baja'
-      },
+      componente_baja: { ...componente, estado: "baja" },
       componente_nuevo: nuevoCompRows[0],
       mantenimiento: mantDet[0],
       inventario_actualizado: {
         item_id: itemId,
-        cantidad_restante: inventarioItem.cantidad - 1
+        cantidad_restante: inventarioItem.cantidad - 1,
       },
       debug_info: {
-        responsable_original: componente.responsable_mantenimiento,
-        responsable_asignado: responsableId,
-        operario_mantenimiento: operario_id,
-        mantenimiento_operario: mantDet[0]?.operario_id
-      }
+        mantenimientos_cancelados: mantCancelados.length,
+        operario_mantenimiento_anterior: operarioIdMantenimiento,
+        mantenimiento_creado_operario: mantDet[0]?.operario_id,
+      },
     });
   } catch (err) {
-    try { await client.query("ROLLBACK"); } catch (e) { console.error("Rollback error:", e); }
-    console.error("❌ Error al dar de baja componente:", err);
-    
-    if (err.code === "23505") {
-      return res.status(400).json({ 
-        error: "El número de serie proporcionado ya existe. Por favor, use uno diferente." 
-      });
+    try {
+      await client.query("ROLLBACK");
+    } catch (e) {
+      console.error("Rollback error:", e);
     }
-    
-    return res.status(500).json({ 
-      error: "Error interno al dar de baja el componente.", 
-      detalle: err.message 
-    });
+    console.error("❌ Error al dar de baja componente:", err);
+    if (err.code === "23505") {
+      return res
+        .status(400)
+        .json({ error: "El número de serie proporcionado ya existe. Por favor, use uno diferente." });
+    }
+    return res
+      .status(500)
+      .json({ error: "Error interno al dar de baja el componente.", detalle: err.message });
   } finally {
     client.release();
   }
 };
+
+
 
 // 🔹 Eliminar componente
 const eliminarComponente = async (req, res) => {

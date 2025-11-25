@@ -88,11 +88,11 @@ const loginUsuario = async (req, res) => {
       rol_id: user.rol_id
     });
 
-    // // Log de ingreso exitoso
-     await pool.query(
-       `INSERT INTO logs (usuario_id, accion) VALUES ($1, $2)`,
-       [user.id, 'Ingreso exitoso al sistema']
-     );
+    // Log de ingreso exitoso
+    //  await pool.query(
+    //    `INSERT INTO logs (usuario_id, accion) VALUES ($1, $2)`,
+    //    [user.id, 'Ingreso exitoso al sistema']
+    //  );
 
     // Retornar datos sin la contraseña
     const { password: _, ...userWithoutPassword } = user;

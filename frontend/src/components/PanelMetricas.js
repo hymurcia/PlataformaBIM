@@ -21,12 +21,10 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://192.168.56.1:5000";
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
 const MetricasPanel = ({ auth }) => {
@@ -56,14 +54,14 @@ const MetricasPanel = ({ auth }) => {
       const token = localStorage.getItem("token");
 
       const [resIncidentes, resMantenimientos] = await Promise.all([
-        axios.get("http://localhost:5000/metricas/incidentes", {
+        axios.get(`${API_BASE_URL}/metricas/incidentes`, {
           params: {
             inicio: fechas.inicio.toISOString().split("T")[0],
             fin: fechas.fin.toISOString().split("T")[0],
           },
           headers: { Authorization: `Bearer ${token}` },
         }),
-        axios.get("http://localhost:5000/metricas/mantenimientos", {
+        axios.get(`${API_BASE_URL}/metricas/mantenimientos`, {
           params: {
             inicio: fechas.inicio.toISOString().split("T")[0],
             fin: fechas.fin.toISOString().split("T")[0],
@@ -112,16 +110,14 @@ const MetricasPanel = ({ auth }) => {
     tiempo: tipo.tiempo_promedio_horas || "N/A",
   })) || [];
 
-  const dataTendencia = metricasIncidentes?.tendencia
-    ?.map((mes) => ({
-      name: new Date(mes.mes).toLocaleDateString("es-ES", {
-        month: "short",
-        year: "numeric",
-      }),
-      reportados: mes.total,
-      resueltos: mes.resueltos,
-    }))
-    .reverse() || [];
+  const dataTendencia = metricasIncidentes?.tendencia?.map((mes) => ({
+    name: new Date(mes.mes).toLocaleDateString("es-ES", {
+      month: "short",
+      year: "numeric",
+    }),
+    reportados: mes.total,
+    resueltos: mes.resueltos,
+  })).reverse() || [];
 
   const dataEstado = [
     { name: "Pendiente", value: metricasIncidentes?.generales?.pendiente || 0 },
@@ -131,7 +127,6 @@ const MetricasPanel = ({ auth }) => {
     { name: "Rechazado", value: metricasIncidentes?.generales?.rechazado || 0 },
   ];
 
-  // 📌 Datos Mantenimientos
   const dataMantenimientos = metricasMantenimientos?.porFrecuencia?.map((m) => ({
     name: m.frecuencia,
     realizados: m.completados,
@@ -170,8 +165,8 @@ const MetricasPanel = ({ auth }) => {
       {/* ======= INCIDENTES ======= */}
       <h3 className="mb-3">🚨 Métricas de Incidentes</h3>
 
-      <Row className="mb-4 g-3">
-        <Col md={3}>
+      <Row className="mb-4 g-3 d-flex flex-row flex-nowrap overflow-auto">
+        <Col style={{ flex: "1 0 20%" }}>
           <Card className="text-white bg-primary shadow">
             <Card.Body>
               <Card.Title>Total Incidentes</Card.Title>
@@ -179,7 +174,7 @@ const MetricasPanel = ({ auth }) => {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3}>
+        <Col style={{ flex: "1 0 20%" }}>
           <Card className="text-white bg-success shadow">
             <Card.Body>
               <Card.Title>Resueltos</Card.Title>
@@ -187,19 +182,43 @@ const MetricasPanel = ({ auth }) => {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3}>
-          <Card className="text-white bg-warning shadow">
+        <Col style={{ flex: "1 0 20%" }}>
+          <Link to="/admin/tareas" style={{ textDecoration: "none" }}>
+            <Card className="text-white bg-warning shadow" style={{ cursor: "pointer" }}>
+              <Card.Body>
+                <Card.Title>Pendientes</Card.Title>
+                <h1>{metricasIncidentes?.generales?.pendiente || 0}</h1>
+              </Card.Body>
+            </Card>
+          </Link>
+        </Col>
+        <Col style={{ flex: "1 0 20%" }}>
+          <Card className="text-white bg-info shadow">
             <Card.Body>
-              <Card.Title>Pendientes</Card.Title>
-              <h1>{metricasIncidentes?.generales?.pendiente || 0}</h1>
+              <Card.Title>Asignados</Card.Title>
+              <h1>{metricasIncidentes?.generales?.asignado || 0}</h1>
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3}>
-          <Card className="text-white bg-info shadow">
+        <Col style={{ flex: "1 0 20%" }}>
+          <Card
+            className={`text-white shadow`}
+            style={{
+              backgroundColor:
+                metricasIncidentes?.generales?.total > 0
+                  ? (metricasIncidentes.generales.resuelto / metricasIncidentes.generales.total) * 100 < 52
+                    ? '#dc3545'
+                    : '#28a745'
+                  : '#6c757d'
+            }}
+          >
             <Card.Body>
-              <Card.Title>Tiempo Prom. (h)</Card.Title>
-              <h1>{metricasIncidentes?.generales?.tiempo_promedio_horas || "N/A"}</h1>
+              <Card.Title>Eficiencia</Card.Title>
+              <h1>
+                {metricasIncidentes?.generales?.total > 0
+                  ? Math.round((metricasIncidentes.generales.resuelto / metricasIncidentes.generales.total) * 100) + '%'
+                  : '0%'}
+              </h1>
             </Card.Body>
           </Card>
         </Col>
@@ -225,8 +244,8 @@ const MetricasPanel = ({ auth }) => {
             </Card.Body>
           </Card>
         </Col>
+
         <Col md={6}>
-          {/* Top responsables */}
           <Card className="mt-4">
             <Card.Header>🏅 Top Responsables</Card.Header>
             <Card.Body>
@@ -263,7 +282,7 @@ const MetricasPanel = ({ auth }) => {
         </Col>
       </Row>
 
-      {/* Gráfico tipos de incidentes */}
+      {/* Tipos de incidentes */}
       <Row className="mb-4">
         <Col>
           <Card>
@@ -328,7 +347,7 @@ const MetricasPanel = ({ auth }) => {
       <h3 className="mb-3 mt-5">🛠️ Métricas de Mantenimientos</h3>
 
       <Row className="mb-4 g-3">
-        <Col md={4}>
+        <Col md={3}>
           <Card className="text-white bg-primary shadow">
             <Card.Body>
               <Card.Title>Total Mantenimientos</Card.Title>
@@ -336,7 +355,8 @@ const MetricasPanel = ({ auth }) => {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={4}>
+
+        <Col md={3}>
           <Card className="text-white bg-success shadow">
             <Card.Body>
               <Card.Title>Completados</Card.Title>
@@ -344,11 +364,37 @@ const MetricasPanel = ({ auth }) => {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={4}>
-          <Card className="text-white bg-warning shadow">
+
+        <Col md={3}>
+          <Link to="/mantenimientos" style={{ textDecoration: "none" }}>
+            <Card className="text-white bg-warning shadow" style={{ cursor: "pointer" }}>
+              <Card.Body>
+                <Card.Title>Pendientes</Card.Title>
+                <h1>{metricasMantenimientos?.generales?.pendiente || 0}</h1>
+              </Card.Body>
+            </Card>
+          </Link>
+        </Col>
+
+        <Col md={3}>
+          <Card
+            className={`text-white shadow`}
+            style={{
+              backgroundColor:
+                metricasMantenimientos?.generales?.total > 0
+                  ? (metricasMantenimientos.generales.completado / metricasMantenimientos.generales.total) * 100 < 52
+                    ? '#dc3545'
+                    : '#28a745'
+                  : '#6c757d'
+            }}
+          >
             <Card.Body>
-              <Card.Title>Pendientes</Card.Title>
-              <h1>{metricasMantenimientos?.generales?.pendiente || 0}</h1>
+              <Card.Title>Eficiencia</Card.Title>
+              <h1>
+                {metricasMantenimientos?.generales?.total > 0
+                  ? Math.round((metricasMantenimientos.generales.completado / metricasMantenimientos.generales.total) * 100) + '%'
+                  : '0%'}
+              </h1>
             </Card.Body>
           </Card>
         </Col>
@@ -370,22 +416,44 @@ const MetricasPanel = ({ auth }) => {
               </tr>
             </thead>
             <tbody>
-              {metricasMantenimientos?.porFrecuencia?.map((m, i) => (
-                <tr key={i}>
-                  <td>{m.frecuencia}</td>
-                  <td>{m.total}</td>
-                  <td>{m.completados}</td>
-                  <td>{m.total - m.completados}</td>
-                  <td>{m.tiempo_promedio_horas || "N/A"}</td>
-                  <td>{m.total > 0 ? Math.round((m.completados / m.total) * 100) : 0}%</td>
+              {metricasMantenimientos?.porFrecuencia?.length > 0 ? (
+                (() => {
+                  const grouped = metricasMantenimientos.porFrecuencia.reduce((acc, m) => {
+                    const frecuencia = m.frecuencia
+                      ? m.frecuencia.charAt(0).toUpperCase() + m.frecuencia.slice(1).toLowerCase()
+                      : "N/A";
+                    if (!acc[frecuencia]) acc[frecuencia] = { total: 0, completados: 0, tiempos: [] };
+                    acc[frecuencia].total += Number(m.total) || 0;
+                    acc[frecuencia].completados += Number(m.completados) || 0;
+                    if (!isNaN(Number(m.tiempo_promedio_horas))) acc[frecuencia].tiempos.push(Number(m.tiempo_promedio_horas));
+                    return acc;
+                  }, {});
+
+                  return Object.entries(grouped).map(([frecuencia, val], i) => {
+                    const pendientes = val.total - val.completados;
+                    const eficiencia = val.total > 0 ? Math.round((val.completados / val.total) * 100) : 0;
+                    const tiempoProm = val.tiempos.length
+                      ? (val.tiempos.reduce((a, b) => a + b, 0) / val.tiempos.length).toFixed(2)
+                      : "N/A";
+                    return (
+                      <tr key={i}>
+                        <td>{frecuencia}</td>
+                        <td>{val.total}</td>
+                        <td>{val.completados}</td>
+                        <td>{pendientes}</td>
+                        <td>{tiempoProm}</td>
+                        <td>{eficiencia}%</td>
+                      </tr>
+                    );
+                  });
+                })()
+              ) : (
+                <tr>
+                  <td colSpan="6" className="text-center">
+                    No hay datos
+                  </td>
                 </tr>
-              )) || (
-                  <tr>
-                    <td colSpan="6" className="text-center">
-                      No hay datos
-                    </td>
-                  </tr>
-                )}
+              )}
             </tbody>
           </Table>
         </Card.Body>
@@ -394,4 +462,4 @@ const MetricasPanel = ({ auth }) => {
   );
 };
 
-export default MetricasPanel;    
+export default MetricasPanel;

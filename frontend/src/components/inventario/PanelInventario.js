@@ -253,7 +253,7 @@ const InventarioItems = () => {
                       </td>
                       <td>
                         {
-                          categorias.find((c) => c.id == inv.categoria)
+                          categorias.find((c) => c.id === inv.categoria)
                             ?.nombre || "—"
                         }
                       </td>
@@ -363,7 +363,7 @@ const InventarioItems = () => {
                       <td>{item.descripcion}</td>
                       <td>
                         {
-                          categorias.find((c) => c.id == item.categoria_id)
+                          categorias.find((c) => c.id === item.categoria_id)
                             ?.nombre || "—"
                         }
                       </td>
@@ -392,29 +392,31 @@ const InventarioItems = () => {
                       <td>
                         {rolUsuario === 2 && (
                           <>
-                            <Button
-                              variant="warning"
-                              size="sm"
-                              onClick={() => {
-                                setEditandoItem(item.id);
-                                setFormItem({
-                                  ...item,
-                                  id: item.id,
-                                  imagen: null,
-                                  imagen_url: item.imagen_url || "",
-                                });
-                                setShowModalItem(true);
-                              }}
-                            >
-                              ✏️ Editar
-                            </Button>{" "}
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => eliminarItem(item.id)}
-                            >
-                              🗑️ Eliminar
-                            </Button>
+                            <div className="d-flex gap-2">
+                              <Button
+                                variant="warning"
+                                size="sm"
+                                onClick={() => {
+                                  setEditandoItem(item.id);
+                                  setFormItem({
+                                    ...item,
+                                    id: item.id,
+                                    imagen: null,
+                                    imagen_url: item.imagen_url || "",
+                                  });
+                                  setShowModalItem(true);
+                                }}
+                              >
+                                ✏️ Editar
+                              </Button>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={() => eliminarItem(item.id)}
+                              >
+                                🗑️ Eliminar
+                              </Button>
+                            </div>
                           </>
                         )}
                       </td>
