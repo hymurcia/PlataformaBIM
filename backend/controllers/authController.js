@@ -68,13 +68,7 @@ const loginUsuario = async (req, res) => {
 
     // Consultar usuario
 
-    const { rows } = await pool.query(
-        // Reemplaza todos los espacios en esta línea, especialmente después de rol_nombre
-        `SELECT u.id, u.nombre, u.apellido, u.telefono, u.email, u.password, u.rol_id, r.nombre AS rol_nombre
-        FROM usuarios u  * JOIN roles r ON u.rol_id = r.id *
-        WHERE u.email = $1`,
-        [email]
-    );
+    const { rows } = await pool.query(`SELECT u.id, u.nombre, u.apellido, u.telefono, u.email, u.password, u.rol_id, r.nombre AS rol_nombre FROM usuarios u JOIN roles r ON u.rol_id = r.id WHERE u.email = $1`, [email]);
 
     const user = rows[0];
     if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
