@@ -66,21 +66,28 @@ const loginUsuario = async (req, res) => {
       return res.status(400).json({ error: 'Email y contraseña requeridos' });
     }
 
-    // Consultar usuario
+    // Consultar usuario (Consulta SQL limpia y compactada)
+    const { rows } = await pool.query(`SELECT u.id, u.nombre, u.apellido, u.telefono, u.email, u.password, u.rol_id, r.nombre AS rol_nombre FROM usuarios u JOIN roles r ON u.rol_id = r.id WHERE u.email = $1`, [email]);
 
-    const { rows } = await pool.query(`SELECT u.id, u.nombre, u.apellido, u.telefono, u.email, u.password, u.rol_id, r.nombre AS rol_nombre FROM usuarios u JOIN roles r ON u.rol_id = r.id WHERE u.email = $1`, [email]);
-
-    
     const user = rows[0];
     if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    // 🌟🌟🌟 INICIO DE LA CORRECCIÓN 🌟🌟🌟
-    // Limpiamos el hash de la base de datos para eliminar cualquier espacio en blanco invisible
-    const storedHash = user.password.trim(); 
-    
-    // Validar contraseña: Usamos el hash limpio (storedHash)
+    // 1. Verificación defensiva
+    if (!user.password) {
+        console.error("Usuario encontrado pero la contraseña está vacía/null en DB:", user.id);
+        return res.status(500).json({ error: 'Error interno de autenticación (Hash faltante)' });
+    }
+
+    // 2. Limpiamos el hash de la base de datos (CRUCIAL)
+    const storedHash = user.password.trim(); 
+    
+    // 3. 🔑 DIAGNÓSTICO: Imprimimos el hash que se va a comparar
+    console.log('--- DIAGNÓSTICO LOGIN ---');
+    console.log('Hash almacenado (Trimmed):', storedHash);
+    // Nota: Por seguridad, NO imprimas 'password'
+
+    // 4. Validar contraseña: Usamos el hash limpio (storedHash)
     const validPassword = await bcrypt.compare(password, storedHash);
-    // 🌟🌟🌟 FIN DE LA CORRECCIÓN 🌟🌟🌟
 
     if (!validPassword) return res.status(401).json({ error: 'Credenciales inválidas' });
 
@@ -90,8 +97,6 @@ const loginUsuario = async (req, res) => {
       email: user.email,
       rol_id: user.rol_id
     });
-
-    // Log de ingreso exitoso (comentado)
 
     // Retornar datos sin la contraseña
     const { password: _, ...userWithoutPassword } = user;
