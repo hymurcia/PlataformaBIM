@@ -5,7 +5,7 @@ import escudo from "./assets/ESCUDO COLOR.png";
 import fondo from "./assets/campus1.jpg";
 
 // URL base configurable por variable de entorno// Reemplazar la IP privada por la URL pública del backend
-const API_BASE_URL = process.env.REACT_APP_API_URL || "https://plataformabim.onrender.com";
+const API_BASE_URL = "https://plataformabim.onrender.com";
 
 const Registro = () => {
   const [formData, setFormData] = useState({
