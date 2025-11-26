@@ -4,8 +4,8 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { generateToken } = require('../utils/jwt');
 
-const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
-
+//const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
+const saltRounds = 10;
 // =========================
 // Registro de usuario
 // =========================
