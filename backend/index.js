@@ -24,26 +24,20 @@ const saltRounds = 10;
 // Middlewares
 // =========================
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-// =========================
-// Middlewares
-// =========================
-// ... (otras líneas)
 
-
-app.use(cors({ 
-    origin: "https://plataformabim-1.onrender.com", // Lee 'https://plataformabim-1.onrender.com' de Render
-    credentials: true, 
-    methods: ["GET", "POST", "PUT", "DELETE"], // Opcional, pero buena práctica
+app.use(cors({ 
+    origin: "https://plataformabim-1.onrender.com",
+    credentials: true, 
+    methods: ["GET", "POST", "PUT", "DELETE"],
 }));
 
-app.use(express.json());
-// ...;
+// ¡SOLO UNA VEZ! Esto asegura que el cuerpo JSON se parsea correctamente.
 app.use(express.json());
 
 // Middleware para establecer UTF-8 en todas las respuestas
 app.use((req, res, next) => {
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  next();
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  next();
 });
 
 // =========================
