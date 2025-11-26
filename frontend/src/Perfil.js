@@ -28,9 +28,7 @@ const Perfil = ({ auth, setAuth }) => {
           return;
         }
 
-        const response = await axios.get("http://localhost:5000/perfil", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+const response = await axios.get("https://plataformabim.onrender.com/perfil", {headers: { Authorization: `Bearer ${token}` },});
 
         setUserData(response.data);
 
