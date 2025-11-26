@@ -21,7 +21,7 @@ const Registro = () => {
   const navigate = useNavigate();
 
   // Configura el dominio permitido
-  const DOMINIO_PERMITIDO = "x.com";
+  const DOMINIO_PERMITIDO = "midominio.com";
 
   // Manejo de cambio en los campos
   const handleChange = (e) => {
