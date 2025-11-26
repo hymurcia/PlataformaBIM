@@ -110,7 +110,7 @@ const loginUsuario = async (req, res) => {
       user: userWithoutPassword
     });
 
-   catch (err) {
+  }catch (err) {
     // 🚨 Loguear la excepción de la DB (Si falla pool.query, caerá aquí)
     console.error('❌ FATAL ERROR loginUsuario (DB o lógica):', err.message);
     res.status(500).json({ error: 'Error en el servidor' });
