@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import escudo from "./assets/ESCUDO COLOR.png";
 import fondo from "./assets/campus1.jpg";
 
-// URL base configurable por variable de entorno
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://192.168.56.1:5000";
+// URL base configurable por variable de entorno// Reemplazar la IP privada por la URL pública del backend
+const API_BASE_URL = process.env.REACT_APP_API_URL || "https://plataformabim.onrender.com";
 
 const Registro = () => {
   const [formData, setFormData] = useState({
