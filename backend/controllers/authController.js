@@ -60,18 +60,21 @@ const registrarUsuario = async (req, res) => {
 // =========================
 const loginUsuario = async (req, res) => {
   try {
+    // 🚨 1. Nuevo Log de Entrada (¡Debe aparecer!) 🚨
+    console.log('--- ENTRADA A LOGIN CONTROLLER ---');
+    console.log('Intento de login para email:', req.body.email);
+
     const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email y contraseña requeridos' });
     }
 
-    // Consultar usuario (Consulta SQL limpia y compactada)
+    // 2. Consultar usuario
     const { rows } = await pool.query(`SELECT u.id, u.nombre, u.apellido, u.telefono, u.email, u.password, u.rol_id, r.nombre AS rol_nombre FROM usuarios u JOIN roles r ON u.rol_id = r.id WHERE u.email = $1`, [email]);
 
     const user = rows[0];
     if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
-
     // 1. Verificación defensiva
     if (!user.password) {
         console.error("Usuario encontrado pero la contraseña está vacía/null en DB:", user.id);
@@ -107,8 +110,9 @@ const loginUsuario = async (req, res) => {
       user: userWithoutPassword
     });
 
-  } catch (err) {
-    console.error('ERROR loginUsuario:', err.message);
+   catch (err) {
+    // 🚨 Loguear la excepción de la DB (Si falla pool.query, caerá aquí)
+    console.error('❌ FATAL ERROR loginUsuario (DB o lógica):', err.message);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };
