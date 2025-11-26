@@ -24,16 +24,22 @@ const saltRounds = 10;
 // Middlewares
 // =========================
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-app.use(cors({ origin: "
-const app = express();
-const server = http.createServer(app); // Necesario para Socket.IO
-const io = socketIO(server, {
-  cors: {
-    origin: "https://plataformabim-1.onrender.com", // frontend React
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
-  },
-});", credentials: true }));
+// =========================
+// Middlewares
+// =========================
+// ... (otras líneas)
+
+// ⬇️ Nueva Configuración de CORS para HTTP/REST ⬇️
+const FRONTEND_URL = process.env.FRONTEND_URL; 
+
+app.use(cors({ 
+    origin: FRONTEND_URL, // Lee 'https://plataformabim-1.onrender.com' de Render
+    credentials: true, 
+    methods: ["GET", "POST", "PUT", "DELETE"], // Opcional, pero buena práctica
+}));
+
+app.use(express.json());
+// ...;
 app.use(express.json());
 
 // Middleware para establecer UTF-8 en todas las respuestas
