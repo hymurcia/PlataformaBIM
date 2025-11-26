@@ -58,7 +58,7 @@ const comparePasswordScrypt = (password, storedHash) => {
 };
 
 // =========================
-// Registro de usuario
+// Registro de usuario 
 // =========================
 const registrarUsuario = async (req, res) => {
   try {
@@ -73,7 +73,7 @@ const registrarUsuario = async (req, res) => {
       return res.status(400).json({ error: 'El teléfono debe tener 10 dígitos' });
     }
 
-    // 🚨 Usamos la nueva función de hashing con scrypt
+    // 🚨 CAMBIO CRÍTICO: Usamos la nueva función scrypt
     const hashedPassword = await hashPasswordScrypt(password);
     const rol_id = 4; // Rol por defecto
 
