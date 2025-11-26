@@ -54,59 +54,62 @@ const registrarUsuario = async (req, res) => {
   }
 };
 
+
 // =========================
 // Login
 // =========================
 const loginUsuario = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email y contraseña requeridos' });
-    }
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email y contraseña requeridos' });
+    }
 
-    // Consultar usuario
-    const { rows } = await pool.query(
-      `SELECT u.id, u.nombre, u.apellido, u.telefono, u.email, u.password, u.rol_id, r.nombre AS rol_nombre 
-       FROM usuarios u
-       JOIN roles r ON u.rol_id = r.id
-       WHERE u.email = $1`,
-      [email]
-    );
+    // Consultar usuario
+    const { rows } = await pool.query(
+      `SELECT u.id, u.nombre, u.apellido, u.telefono, u.email, u.password, u.rol_id, r.nombre AS rol_nombre 
+       FROM usuarios u
+       JOIN roles r ON u.rol_id = r.id
+       WHERE u.email = $1`,
+      [email]
+    );
 
-    const user = rows[0];
-    if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
+    const user = rows[0];
+    if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    // Validar contraseña
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) return res.status(401).json({ error: 'Credenciales inválidas' });
+    // 🌟🌟🌟 INICIO DE LA CORRECCIÓN 🌟🌟🌟
+    // Limpiamos el hash de la base de datos para eliminar cualquier espacio en blanco invisible
+    const storedHash = user.password.trim(); 
+    
+    // Validar contraseña: Usamos el hash limpio (storedHash)
+    const validPassword = await bcrypt.compare(password, storedHash);
+    // 🌟🌟🌟 FIN DE LA CORRECCIÓN 🌟🌟🌟
 
-    // Generar token
-    const token = generateToken({
-      id: user.id,
-      email: user.email,
-      rol_id: user.rol_id
-    });
+    if (!validPassword) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    // Log de ingreso exitoso
-    //  await pool.query(
-    //    `INSERT INTO logs (usuario_id, accion) VALUES ($1, $2)`,
-    //    [user.id, 'Ingreso exitoso al sistema']
-    //  );
+    // Generar token
+    const token = generateToken({
+      id: user.id,
+      email: user.email,
+      rol_id: user.rol_id
+    });
 
-    // Retornar datos sin la contraseña
-    const { password: _, ...userWithoutPassword } = user;
+    // Log de ingreso exitoso (comentado)
 
-    res.json({
-      message: 'Login exitoso',
-      token,
-      user: userWithoutPassword
-    });
+    // Retornar datos sin la contraseña
+    const { password: _, ...userWithoutPassword } = user;
 
-  } catch (err) {
-    console.error('ERROR loginUsuario:', err.message);
-    res.status(500).json({ error: 'Error en el servidor' });
-  }
+    res.json({
+      message: 'Login exitoso',
+      token,
+      user: userWithoutPassword
+    });
+
+  } catch (err) {
+    console.error('ERROR loginUsuario:', err.message);
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
 };
 
 // =========================
