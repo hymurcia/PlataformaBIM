@@ -29,11 +29,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // =========================
 // ... (otras líneas)
 
-// ⬇️ Nueva Configuración de CORS para HTTP/REST ⬇️
-const FRONTEND_URL = process.env.FRONTEND_URL; 
 
 app.use(cors({ 
-    origin: FRONTEND_URL, // Lee 'https://plataformabim-1.onrender.com' de Render
+    origin: "https://plataformabim-1.onrender.com", // Lee 'https://plataformabim-1.onrender.com' de Render
     credentials: true, 
     methods: ["GET", "POST", "PUT", "DELETE"], // Opcional, pero buena práctica
 }));
