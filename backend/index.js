@@ -34,6 +34,12 @@ app.use(cors({ 
 // ¡SOLO UNA VEZ! Esto asegura que el cuerpo JSON se parsea correctamente.
 app.use(express.json());
 
+// 🚨 RUTA DE PRUEBA TEMPORAL 🚨
+app.post('/test', (req, res) => {
+    console.log('✅ RUTA TEST ALCANZADA. BODY:', req.body);
+    res.json({ message: 'Ruta de prueba funciona!' });
+});
+
 // Middleware para establecer UTF-8 en todas las respuestas
 app.use((req, res, next) => {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
