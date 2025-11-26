@@ -1,18 +1,16 @@
 const pool = require('../db');
-// Eliminamos bcryptjs, ya que causaba problemas.
-// const bcrypt = require('bcryptjs'); 
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { generateToken } = require('../utils/jwt');
 
 // Configuración de scrypt (recomendada para un hash seguro)
 const scryptConfig = {
-    N: 16384, // Factor de costo (iteraciones)
-    r: 8,     // Tamaño del bloque
-    p: 1,     // Paralelismo
-    keylen: 64, // Longitud de la clave (Hash)
-    saltlen: 16, // Longitud del salt (fijo)
+    N: 16384, 
+    r: 8,     
+    p: 1,     
+    keylen: 64, 
 };
+const saltlen = 16; // 16 bytes de salt
 
 // =========================
 // Función de utilidad para scrypt (Registrar)
@@ -20,10 +18,11 @@ const scryptConfig = {
 // =========================
 const hashPasswordScrypt = (password) => {
     return new Promise((resolve, reject) => {
-        crypto.scrypt(password, crypto.randomBytes(scryptConfig.saltlen), scryptConfig.keylen, scryptConfig, (err, derivedKey) => {
+        const salt = crypto.randomBytes(saltlen).toString('hex'); // Generamos el salt
+        
+        crypto.scrypt(password, salt, scryptConfig.keylen, scryptConfig, (err, derivedKey) => {
             if (err) return reject(err);
-            // El salt real está contenido en los primeros bytes de derivedKey
-            const salt = derivedKey.slice(0, scryptConfig.saltlen).toString('hex');
+            
             const hash = derivedKey.toString('hex');
             // Almacenamos el salt junto con el hash para la comparación
             resolve(`${salt}:${hash}`);
@@ -38,9 +37,8 @@ const comparePasswordScrypt = (password, storedHash) => {
     return new Promise((resolve, reject) => {
         const parts = storedHash.split(':');
         
-        // Verifica que el hash almacenado tenga el formato scrypt (salt:hash)
+        // Si el hash no tiene el formato 'salt:hash' (ej. si es bcrypt), fallamos la comparación
         if (parts.length !== 2) {
-            // Este caso atrapará hashes viejos de bcrypt y los rechazará
             return resolve(false); 
         }
         
@@ -57,13 +55,14 @@ const comparePasswordScrypt = (password, storedHash) => {
     });
 };
 
+
 // =========================
-// Registro de usuario 
+// Registro de usuario
 // =========================
 const registrarUsuario = async (req, res) => {
   try {
     const { nombre, apellido, telefono, email, password } = req.body;
-
+    // ... (validaciones)
     if (!nombre || !apellido || !telefono || !email || !password) {
       return res.status(400).json({ error: 'Todos los campos son requeridos' });
     }
@@ -73,9 +72,9 @@ const registrarUsuario = async (req, res) => {
       return res.status(400).json({ error: 'El teléfono debe tener 10 dígitos' });
     }
 
-    // 🚨 CAMBIO CRÍTICO: Usamos la nueva función scrypt
+    // 🚨 Usamos la nueva función de hashing con scrypt
     const hashedPassword = await hashPasswordScrypt(password);
-    const rol_id = 4; // Rol por defecto
+    const rol_id = 4;
 
     const { rows } = await pool.query(
       `INSERT INTO usuarios (nombre, apellido, telefono, email, password, rol_id) 
@@ -112,14 +111,13 @@ const registrarUsuario = async (req, res) => {
 // =========================
 const loginUsuario = async (req, res) => {
   try {
-    // 🚨 Logs de diagnóstico eliminados para la versión final
     const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email y contraseña requeridos' });
     }
 
-    // 2. Consultar usuario (Consulta robusta con rol si es necesario)
+    // Consulta de usuario (versión robusta con LEFT JOIN)
     const { rows } = await pool.query(
         'SELECT u.id, u.nombre, u.email, u.password, u.rol_id, r.nombre AS rol_nombre FROM usuarios u LEFT JOIN roles r ON u.rol_id = r.id WHERE u.email = $1',
         [email]
@@ -158,11 +156,12 @@ const loginUsuario = async (req, res) => {
       user: userWithoutPassword
     });
 
-  } catch (err) { // 🚨 Corregida la sintaxis del catch
+  } catch (err) {
     console.error('❌ FATAL ERROR loginUsuario (scrypt):', err.message);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };
+
 
 // =========================
 // Forgot Password
