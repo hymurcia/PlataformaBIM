@@ -7,7 +7,7 @@ import fondo from "./assets/campus1.jpg";
 // ======================
 // Configuración API
 // ======================
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://192.168.56.1:5000";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "https://plataformabim.onrender.com";
 
 const Login = ({ setAuth }) => {
   const [formData, setFormData] = useState({ email: "", password: "" });
