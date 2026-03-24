@@ -114,23 +114,21 @@ npm start
 ```env
 DB_HOST=localhost
 DB_USER=postgres
-DB_PASSWORD=Clave
+DB_PASSWORD=tu_contraseña_aqui
 DB_NAME=plataforma_web_bim
 DB_PORT=5432
 PORT=5000
-JWT_SECRET= claveSecreta
+JWT_SECRET=tu_jwt_secret_aqui
 
 FRONTEND_URL=http://localhost:3000
 
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_SECURE=false
-EMAIL_USER=correo
-EMAIL_PASS= clave
-EMAIL_FROM="Soporte Plataforma BIM <administradorTI@gmail.com>"
-FRONTEND_URL=http://localhost:3000
+EMAIL_USER=tu_correo@gmail.com
+EMAIL_PASS=tu_contraseña_de_aplicacion
+EMAIL_FROM="Soporte Plataforma BIM <tu_correo@gmail.com>"
 RESET_TOKEN_EXP_HOURS=1
-
 ```
 
 ## 📖 Uso

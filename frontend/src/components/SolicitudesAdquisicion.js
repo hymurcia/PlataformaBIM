@@ -14,6 +14,7 @@ import {
 } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import facatativa2 from "../assets/facatativa-2.jpg";
+import API_BASE_URL from "../utils/config";
 
 const SolicitudesAdquisicion = () => {
   const [solicitudes, setSolicitudes] = useState([]);
@@ -44,7 +45,7 @@ const SolicitudesAdquisicion = () => {
         navigate("/login");
         return;
       }
-      const res = await axios.get("http://localhost:5000/perfil", {
+      const res = await axios.get(`${API_BASE_URL}/perfil`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUser(res.data);
@@ -62,7 +63,7 @@ const SolicitudesAdquisicion = () => {
         return;
       }
 
-      const res = await axios.get("http://localhost:5000/solicitudes", {
+      const res = await axios.get(`${API_BASE_URL}/solicitudes`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setSolicitudes(res.data);
@@ -85,7 +86,7 @@ const SolicitudesAdquisicion = () => {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        "http://localhost:5000/solicitudes",
+        `${API_BASE_URL}/solicitudes`,
         {
           ...formData,
           usuario_solicitante: `${user.nombre}`,

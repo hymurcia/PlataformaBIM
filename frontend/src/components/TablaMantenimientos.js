@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Badge, Modal, Form, Card, Container, Spinner } from 'react-bootstrap';
 import axios from 'axios';
+import API_BASE_URL from '../utils/config';
 
 const TablaMantenimientos = ({ mantenimientos, recargar }) => {
   const [showModal, setShowModal] = useState(false);
@@ -15,7 +16,7 @@ const TablaMantenimientos = ({ mantenimientos, recargar }) => {
     const cargarUbicaciones = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://localhost:5000/ubicaciones', {
+        const response = await axios.get(`${API_BASE_URL}/ubicaciones`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setUbicaciones(response.data);
@@ -42,7 +43,7 @@ const TablaMantenimientos = ({ mantenimientos, recargar }) => {
     try {
       const token = localStorage.getItem('token');
       await axios.put(
-        `http://localhost:5000/mantenimientos/${selectedTarea.tarea_id}/estado`,
+        `${API_BASE_URL}/mantenimientos/${selectedTarea.tarea_id}/estado`,
         { estado: formData.estado, comentarios: formData.comentarios },
         { headers: { Authorization: `Bearer ${token}` } }
       );

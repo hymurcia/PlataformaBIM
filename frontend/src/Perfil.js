@@ -13,6 +13,7 @@ import {
 } from "react-bootstrap";
 import facatativa2 from "./assets/facatativa-2.jpg"; // Imagen de fondo
 import escudoColor from "./assets/ESCUDO COLOR.png"; // Escudo de la universidad
+import API_BASE_URL from "./utils/config";
 
 const Perfil = ({ auth, setAuth }) => {
   const [userData, setUserData] = useState(null);
@@ -28,7 +29,7 @@ const Perfil = ({ auth, setAuth }) => {
           return;
         }
 
-const response = await axios.get("https://plataformabim.onrender.com/perfil", {headers: { Authorization: `Bearer ${token}` },});
+const response = await axios.get(`${API_BASE_URL}/perfil`, {headers: { Authorization: `Bearer ${token}` },});
 
         setUserData(response.data);
 

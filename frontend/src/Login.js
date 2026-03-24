@@ -3,11 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import escudo from "./assets/ESCUDO COLOR.png";
 import fondo from "./assets/campus1.jpg";
-
-// ======================
-// Configuración API
-// ======================
-const API_BASE_URL = process.env.REACT_APP_API_URL || "https://plataformabim.onrender.com";
+import API_BASE_URL from "./utils/config";
 
 const Login = ({ setAuth }) => {
   const [formData, setFormData] = useState({ email: "", password: "" });

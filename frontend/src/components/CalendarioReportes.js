@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { OverlayTrigger, Tooltip, Modal, Badge, Button, Container, Card, Spinner, Alert } from 'react-bootstrap';
 import facatativa2 from '../assets/facatativa-2.jpg';
 import './CalendarioReportes.css';
+import API_BASE_URL from '../utils/config';
 
 moment.locale('es');
 const localizer = momentLocalizer(moment);
@@ -32,8 +33,6 @@ export default function CalendarioReportes({ auth }) {
   const [fechaVista, setFechaVista] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
-  const API_BASE_URL = 'http://localhost:5000';
 
   const formatDate = (fecha) => {
     if (!fecha) return "No registrada";

@@ -1,7 +1,11 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-const secretKey = process.env.JWT_SECRET || 'tu_clave_secreta_super_segura';
+const secretKey = process.env.JWT_SECRET;
+
+if (!secretKey) {
+  throw new Error('JWT_SECRET no está definida en las variables de entorno');
+}
 
 const generateToken = (user) => {
   return jwt.sign(

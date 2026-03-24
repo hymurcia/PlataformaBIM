@@ -4,6 +4,7 @@ import { Container, Card, Spinner } from 'react-bootstrap';
 import TablaIncidentes from './TablaIncidentes';
 import TablaMantenimientos from './TablaMantenimientos';
 import facatativa2 from "../assets/facatativa-2.jpg"; // 🔹 Imagen de fondo
+import API_BASE_URL from '../utils/config';
 
 const TareasResponsable = ({ auth }) => {
   const [tareas, setTareas] = useState([]);
@@ -22,7 +23,7 @@ const TareasResponsable = ({ auth }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        'http://localhost:5000/asignaciones/mis-asignaciones',
+        `${API_BASE_URL}/asignaciones/mis-asignaciones`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

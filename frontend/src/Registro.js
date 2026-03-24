@@ -3,9 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import escudo from "./assets/ESCUDO COLOR.png";
 import fondo from "./assets/campus1.jpg";
-
-// URL base configurable por variable de entorno// Reemplazar la IP privada por la URL pública del backend
-const API_BASE_URL = "https://plataformabim.onrender.com";
+import API_BASE_URL from "./utils/config";
 
 const Registro = () => {
   const [formData, setFormData] = useState({

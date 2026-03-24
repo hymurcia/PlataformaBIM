@@ -1,5 +1,11 @@
 const pool = require('../db');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
+
+const SALT_ROUNDS = 10;
+
+const hashPassword = async (password) => {
+  return await bcrypt.hash(password, SALT_ROUNDS);
+};
 
 // 1. Obtener usuarios (paginado + búsqueda)
 const obtenerUsuarios = async (req, res) => {
@@ -45,7 +51,7 @@ const obtenerUsuarios = async (req, res) => {
 const crearUsuario = async (req, res) => {
   try {
     const { nombre, apellido, telefono, email, password, rol_id } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hashPassword(password);
 
     const { rows } = await pool.query(
       `INSERT INTO usuarios (nombre, apellido, telefono, email, password, rol_id)

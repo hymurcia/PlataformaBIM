@@ -9,7 +9,6 @@ const {
   eliminarUsuario
 } = require('../controllers/adminUsuariosController');
 const checkRole = require('../middleware/roles');
-const e = require('express');
 
 router.get('/usuarios', checkRole([1, 2]), obtenerUsuarios);
 router.post('/usuarios', checkRole([1, 2]), crearUsuario);

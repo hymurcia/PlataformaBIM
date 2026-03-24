@@ -3,6 +3,7 @@ import { Table, Card, Spinner, Alert, Container, Image } from "react-bootstrap";
 import axios from "axios";
 import facatativa2 from "../assets/facatativa-2.jpg";
 import escudoColor from "../assets/ESCUDO COLOR.png";
+import API_BASE_URL from "../utils/config";
 
 const LogsUsuarios = () => {
   const [logs, setLogs] = useState([]);
@@ -15,7 +16,7 @@ const LogsUsuarios = () => {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/logs", { headers });
+        const res = await axios.get(`${API_BASE_URL}/logs`, { headers });
         setLogs(res.data);
       } catch (err) {
         console.error(err);

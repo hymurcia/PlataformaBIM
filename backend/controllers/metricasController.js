@@ -149,7 +149,6 @@ const obtenerMetricasMantenimientos = async (req, res) => {
 const obtenerMetricasOperativo = async (req, res) => {
   try {
     const usuarioId = req.params.id;
-    console.log("📊 Generando métricas para operativo:", usuarioId);
 
     const responsableRes = await pool.query(
       `SELECT id FROM responsables WHERE usuario_id = $1 AND activo = true`,

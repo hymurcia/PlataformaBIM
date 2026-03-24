@@ -13,12 +13,12 @@ const obtenerPerfil = async (req, res) => {
     const decoded = verifyToken(token);
 
     const { rows } = await pool.query(
-      `SELECT u.id, u.nombre, u.email, u.rol_id, r.nombre AS rol_nombre 
-       FROM usuarios u
-       LEFT JOIN roles r ON u.rol_id = r.id 
-       WHERE u.id = $1`,
-      [decoded.id]
-    );
+      `SELECT u.id, u.nombre, u.email, u.rol_id, r.nombre AS rol_nombre
+       FROM usuarios u
+       LEFT JOIN roles r ON u.rol_id = r.id
+       WHERE u.id = $1`,
+      [decoded.id]
+    );
 
     if (!rows[0]) {
       return res.status(404).json({ error: 'Usuario no encontrado' });

@@ -1,44 +1,59 @@
 const express = require("express");
 const cors = require("cors");
-const bcrypt = require("bcrypt");
 const pool = require("./db");
 const { generateToken, verifyToken } = require("./utils/jwt");
 const path = require("path");
 const http = require("http");
 const socketIO = require("socket.io");
 const { setSocket } = require("./utils/notificar");
+const rateLimit = require("express-rate-limit");
 
 const app = express();
 const server = http.createServer(app); // Necesario para Socket.IO
+
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+
+const ALLOWED_ORIGINS = [
+  FRONTEND_URL,
+  "https://plataformabim.onrender.com",
+  "https://plataformabim-1.onrender.com"
+];
+
 const io = socketIO(server, {
   cors: {
-    origin: "https://plataformabim-1.onrender.com", // frontend React
+    origin: ALLOWED_ORIGINS,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
 });
 
-const saltRounds = 10;
+// =========================
+// Rate Limiting
+// =========================
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // máximo 100 requests por ventana
+  message: { error: "Demasiadas solicitudes, intenta de nuevo en 15 minutos" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // =========================
 // Middlewares
 // =========================
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.use(cors({ 
-    origin: "https://plataformabim-1.onrender.com",
-    credentials: true, 
-    methods: ["GET", "POST", "PUT", "DELETE"],
+app.use(cors({ 
+    origin: ALLOWED_ORIGINS,
+    credentials: true, 
+    methods: ["GET", "POST", "PUT", "DELETE"],
 }));
 
 // ¡SOLO UNA VEZ! Esto asegura que el cuerpo JSON se parsea correctamente.
 app.use(express.json());
 
-// 🚨 RUTA DE PRUEBA TEMPORAL 🚨
-app.post('/test', (req, res) => {
-    console.log('✅ RUTA TEST ALCANZADA. BODY:', req.body);
-    res.json({ message: 'Ruta de prueba funciona!' });
-});
+// Aplicar rate limiting global
+app.use(limiter);
 
 // Middleware para establecer UTF-8 en todas las respuestas
 app.use((req, res, next) => {

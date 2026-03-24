@@ -136,8 +136,6 @@ const obtenerMisAsignaciones = async (req, res) => {
   try {
     const usuarioId = req.user.id;
 
-    console.log("🔍 Buscando asignaciones para usuario:", usuarioId);
-
     // 1. Buscar el responsable_id
     const responsableRes = await pool.query(
       `SELECT id FROM responsables WHERE usuario_id = $1 AND activo = true`,
@@ -145,7 +143,6 @@ const obtenerMisAsignaciones = async (req, res) => {
     );
 
     if (responsableRes.rows.length === 0) {
-      console.log("⚠️ Usuario no es responsable activo");
       return res.json([]);
     }
 
@@ -286,8 +283,6 @@ const actualizarAsignacion = async (req, res) => {
     const asignacionId = req.params.id;
     const { estado, comentarios, tipo } = req.body;
     const usuarioId = req.user.id;
-
-    console.log(`🔄 Actualizando asignación ID=${asignacionId}, tipo=${tipo}, estado=${estado}, usuario=${usuarioId}`);
 
     // 1️⃣ Validar usuario responsable activo
     const respRes = await client.query(

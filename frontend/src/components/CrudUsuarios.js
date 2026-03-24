@@ -18,6 +18,7 @@ import {
 } from "react-bootstrap";
 import facatativa2 from "../assets/facatativa-2.jpg";
 import escudoColor from "../assets/ESCUDO COLOR.png";
+import API_BASE_URL from "../utils/config";
 
 const CrudUsuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
@@ -110,7 +111,7 @@ const CrudUsuarios = () => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:5000/admin/usuarios", {
+      const response = await axios.get(`${API_BASE_URL}/admin/usuarios`, {
         params: { search, page, limit },
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -130,7 +131,7 @@ const CrudUsuarios = () => {
   const fetchRoles = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:5000/admin/roles", {
+      const response = await axios.get(`${API_BASE_URL}/admin/roles`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRoles(response.data || []);
@@ -208,7 +209,7 @@ const CrudUsuarios = () => {
       const token = localStorage.getItem("token");
       if (editingUser) {
         const res = await axios.put(
-          `http://localhost:5000/admin/usuarios/${editingUser}`,
+          `${API_BASE_URL}/admin/usuarios/${editingUser}`,
           {
             nombre: formData.nombre,
             apellido: formData.apellido,
@@ -221,7 +222,7 @@ const CrudUsuarios = () => {
         showAlert("success", `Usuario actualizado correctamente (${res.data.nombre || editingUser}).`);
       } else {
         const res = await axios.post(
-          "http://localhost:5000/admin/usuarios",
+          `${API_BASE_URL}/admin/usuarios`,
           formData,
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -247,7 +248,7 @@ const CrudUsuarios = () => {
     setDeletingId(id);
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`http://localhost:5000/admin/usuarios/${id}`, {
+      await axios.delete(`${API_BASE_URL}/admin/usuarios/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       showAlert("success", `Usuario eliminado correctamente (id: ${id}).`);
