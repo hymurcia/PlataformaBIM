@@ -56,7 +56,7 @@ const Clima = () => {
 
         <div style={styles.infoContainer}>
           <img
-            src={`http://openweathermap.org/img/wn/${clima.weather[0].icon}@4x.png`}
+            src={`https://openweathermap.org/img/wn/${clima.weather[0].icon}@4x.png`}
             alt="icono clima"
             style={styles.icon}
           />
