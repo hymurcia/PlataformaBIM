@@ -2,6 +2,22 @@
 
 Una plataforma web completa para la gestión eficiente de mantenimiento locativo basada en la metodología BIM (Building Information Modeling) para la Universidad de Cundinamarca Extensión Facatativá.
 
+## 🔗 Enlaces de Producción
+
+| Servicio | URL |
+|----------|-----|
+| **Frontend** | https://plataformabim-1.onrender.com |
+| **Backend API** | https://plataformabim.onrender.com |
+
+## 👤 Usuarios de Prueba
+
+| Rol | Correo | Contraseña |
+|-----|--------|------------|
+| Administrador | admin@bim.com | Admin123! |
+| Administrativo | adminis@bim.com | Adminis123! |
+| Operario | operario@bim.com | Operario123! |
+| Usuario | usuario@bim.com | Usuario123! |
+
 ## 📋 Descripción
 
 Esta aplicación permite gestionar de manera integral los incidentes, mantenimientos preventivos y predictivos, inventario de componentes, y reportes de la infraestructura universitaria. Utiliza la metodología BIM para optimizar la gestión de instalaciones y mejorar la toma de decisiones.
