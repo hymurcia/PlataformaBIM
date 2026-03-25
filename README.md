@@ -135,6 +135,7 @@ DB_NAME=plataforma_web_bim
 DB_PORT=5432
 PORT=5000
 JWT_SECRET=tu_jwt_secret_aqui
+NODE_ENV=development
 
 FRONTEND_URL=http://localhost:3000
 
